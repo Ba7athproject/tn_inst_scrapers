@@ -165,13 +165,23 @@ class JORTScraper:
             page = await context.new_page()
             
             try:
-                # 1. Login
+                # 1. Login avec simulation humaine
                 await page.goto(f"{self.base_url}/login", wait_until="domcontentloaded", timeout=60000)
-                await page.wait_for_selector("input[name='username']", timeout=15000)
-                await page.fill("input[name='username']", self.user)
-                await page.fill("input[name='password']", self.pwd)
+                
+                # Attendre que les champs soient interactifs
+                username_loc = page.locator("input[name='username']")
+                password_loc = page.locator("input[name='password']")
+                await username_loc.wait_for(state="visible", timeout=15000)
+                
+                # Frapper les touches lentement pour déclencher le framework Vaadin
+                await username_loc.press_sequentially(self.user, delay=50)
+                await password_loc.press_sequentially(self.pwd, delay=50)
+                
+                # Cliquer sur le bouton de connexion
                 await page.click("vaadin-button[theme~='primary']")
-                await page.wait_for_selector("vaadin-text-field", timeout=20000)
+                
+                # PAUSE CRITIQUE : On force le Cloud à attendre la validation serveur
+                await asyncio.sleep(4)
 
                 # 2. Recherche
                 await page.goto(f"{self.base_url}/search/{keyword}", wait_until="domcontentloaded", timeout=60000)
@@ -180,7 +190,6 @@ class JORTScraper:
                 total_results = 0
                 pages_to_scrape = 1
                 try:
-                    # S'assurer que les annonces sont chargées. Si 0 résultat, ça part en Timeout silencieux.
                     await page.wait_for_selector("announcement-card", timeout=15000)
                     
                     regex_pagination = re.compile(r'\d+\s*-\s*\d+\s+(?:of|sur|de|من)\s+\d+', re.IGNORECASE)
@@ -197,7 +206,7 @@ class JORTScraper:
                     st.info(f"📊 Compteur détecté : {total_results} annonces. Extraction sur {pages_to_scrape} pages...")
                 
                 except PlaywrightTimeoutError:
-                    # 📸 PREUVE VISUELLE : Prendre une photo de ce qui bloque le Cloud
+                    # 📸 PREUVE VISUELLE
                     await page.screenshot(path="debug_jort_cloud.png", full_page=True)
                     await browser.close()
                     return pd.DataFrame()
@@ -211,7 +220,7 @@ class JORTScraper:
                         await page.wait_for_selector("announcement-card", timeout=15000)
                         await asyncio.sleep(2) # Stabilisation Vaadin
                     except PlaywrightTimeoutError:
-                        break # Fin naturelle (ou page vide)
+                        break
                     except Exception:
                         break
                         
@@ -333,7 +342,7 @@ if check_password():
                 st.error("Secrets JORT_USER / JORT_PASS manquants.")
             else:
                 j_scraper = JORTScraper(st.secrets["JORT_USER"], st.secrets["JORT_PASS"], headless=True)
-                with st.spinner("Analyse de la pagination et collecte..."):
+                with st.spinner("Authentification et collecte en cours...") :
                     try:
                         loop = asyncio.new_event_loop()
                         asyncio.set_event_loop(loop)
@@ -349,10 +358,9 @@ if check_password():
                     csv_j = df_jort.to_csv(index=False, encoding='utf-8-sig')
                     st.download_button("📥 Télécharger CSV JORT", data=csv_j, file_name=f"jort_{kw_jort}.csv")
                 else: 
-                    st.warning("Aucune annonce trouvée ou accès bloqué par le serveur.")
-                    # 📸 Afficher la capture d'écran d'investigation
+                    st.warning("Aucune annonce trouvée.")
                     if os.path.exists("debug_jort_cloud.png"):
-                        st.error("🚨 Rapport de débogage : Voici ce que le site jortsearch.com affiche réellement à notre serveur Cloud :")
+                        st.error("🚨 Rapport de débogage (Le serveur est probablement resté bloqué sur la page ci-dessous) :")
                         st.image("debug_jort_cloud.png")
 
     # --- MODULE FUSION ---
@@ -413,4 +421,4 @@ if check_password():
             st.rerun()
 
     st.divider()
-    st.caption("Console d'investigation ba7ath v9.2 PRO - Standard 2026. (c) Tout droit de reproduction réservé.")
+    st.caption("Console d'investigation ba7ath v9.3 PRO - Standard 2026. (c) Tout droit de reproduction réservé.")
