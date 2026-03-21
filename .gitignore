@@ -15,7 +15,7 @@ venv/
 *.sqlite
 !ba7ath.png
 *.log
-
+debug_jort_cloud.png
 # Système
 .DS_Store
 Thumbs.db

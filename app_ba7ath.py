@@ -36,7 +36,7 @@ def check_password():
             st.session_state["password_correct"] = False
 
     if "password_correct" not in st.session_state:
-        st.title("🔐 Accès Restreint : ba7ath Institutionnal Scrapers")
+        st.title("🔐 Accès Restreint : ba7ath")
         st.text_input("Veuillez saisir le code d'accès investigation :", 
                      type="password", on_change=password_entered, key="password")
         st.info("Cette console est un outil protégé réservé au projet ba7ath.")
@@ -158,7 +158,7 @@ class JORTScraper:
 
     async def run(self, keyword, max_safety_pages=50):
         async with async_playwright() as p:
-            # Masquer la signature du bot
+            # OSINT : Masquage léger du bot pour le Cloud
             browser = await p.chromium.launch(
                 headless=self.headless,
                 args=["--disable-blink-features=AutomationControlled"]
@@ -169,13 +169,13 @@ class JORTScraper:
             page = await context.new_page()
             
             try:
-                # 1. Login avec approche "Clavier Humain" (Contournement Vaadin Shadow DOM)
+                # 1. Login - Correctif Cloud pour le framework Vaadin
                 await page.goto(f"{self.base_url}/login", wait_until="networkidle", timeout=60000)
+                await page.wait_for_timeout(5000) # Pause d'hydratation JS indispensable sur serveur distant
                 
+                # Simulation de frappe clavier humaine pour contrer le Shadow DOM
                 user_input = page.locator("input[name='username']")
                 await user_input.wait_for(state="visible", timeout=20000)
-                
-                # Clic explicite puis frappe au clavier système
                 await user_input.click()
                 await page.keyboard.type(self.user, delay=100)
                 
@@ -183,27 +183,26 @@ class JORTScraper:
                 await pass_input.click()
                 await page.keyboard.type(self.pwd, delay=100)
                 
-                # Clic sur connexion
-                login_btn = page.locator("vaadin-button[theme~='primary']")
-                await login_btn.click()
-                
-                # Attente passive longue pour la création du cookie de session
-                await asyncio.sleep(6)
-                
-                # 2. Recherche (Seulement maintenant qu'on est identifié)
-                await page.goto(f"{self.base_url}/search/{keyword}", wait_until="domcontentloaded", timeout=60000)
+                await page.click("vaadin-button[theme~='primary']")
+                await page.wait_for_timeout(6000) # Attente de validation de la session côté serveur
+
+                # 2. Recherche
+                await page.goto(f"{self.base_url}/search/{keyword}", wait_until="networkidle", timeout=60000)
                 
                 # --- AUTO-DETECTION DE LA PAGINATION ---
                 total_results = 0
                 pages_to_scrape = 1
                 try:
+                    # S'assurer que les annonces sont chargées. Séparé dans un bloc Try.
                     await page.wait_for_selector("announcement-card", timeout=15000)
                     
+                    # On cible strictement le pattern "1-10 of XXX"
                     regex_pagination = re.compile(r'\d+\s*-\s*\d+\s+(?:of|sur|de|من)\s+\d+', re.IGNORECASE)
                     pagination_locator = page.locator("span").filter(has_text=regex_pagination).first
                     await pagination_locator.wait_for(timeout=5000)
                     pagination_label = await pagination_locator.inner_text()
                     
+                    # Extraction du nombre total de résultats
                     match_total = re.search(r'\d+\s*-\s*\d+\s+(?:of|sur|de|من)\s+(\d+)', pagination_label, re.IGNORECASE)
                     if match_total:
                         total_results = int(match_total.group(1))
@@ -213,21 +212,22 @@ class JORTScraper:
                     st.info(f"📊 Compteur détecté : {total_results} annonces. Extraction sur {pages_to_scrape} pages...")
                 
                 except PlaywrightTimeoutError:
-                    # 📸 PREUVE VISUELLE
+                    # Cas où 0 résultat ou page restée vide sur le cloud
                     await page.screenshot(path="debug_jort_cloud.png", full_page=True)
                     await browser.close()
                     return pd.DataFrame()
                 except Exception:
+                    # Fallback de sécurité si la pagination n'est pas présente (ex: < 10 résultats)
                     st.info(f"📊 Format de pagination introuvable. Parcours dynamique jusqu'à la limite de {max_safety_pages} pages...")
                     pages_to_scrape = max_safety_pages
                 
                 all_annonces = []
                 for p_idx in range(pages_to_scrape):
                     try:
-                        await page.wait_for_selector("announcement-card", timeout=15000)
+                        await page.wait_for_selector("announcement-card", timeout=10000)
                         await asyncio.sleep(2) # Stabilisation Vaadin
                     except PlaywrightTimeoutError:
-                        break # Fin naturelle (ou page vide)
+                        break # Fin des annonces
                     except Exception:
                         break
                         
@@ -237,10 +237,12 @@ class JORTScraper:
                         
                     for c in cards:
                         try:
+                            # Extraction stricte de l'utilisateur
                             journal_name = await c.evaluate("node => node.title")
                             categorie_name = await c.evaluate("node => node.subTitle")
                             content_text = await c.locator("span").inner_text()
                             
+                            # Regex de filtrage ID JORT
                             id_match = re.search(r'(\d{4}[A-Z0-9]\d{5}[A-Z]{4}\d)', content_text)
                             
                             all_annonces.append({
@@ -272,10 +274,9 @@ class JORTScraper:
                 
                 await browser.close()
                 return pd.DataFrame(all_annonces)
-                
             except Exception as e:
                 await browser.close()
-                st.error(f"Erreur technique JORT : {e}")
+                st.error(f"Erreur de navigation JORT : {e}")
                 return pd.DataFrame()
 
 # ============================================================================
@@ -341,7 +342,7 @@ if check_password():
     elif selected == "JORT":
         st.header("📜 Scraping JORT Automatisé")
         col_k, col_p = st.columns([3, 1])
-        with col_k: kw_jort = st.text_input("Recherche textuelle JORT", placeholder="ex: International", key="jort_kw")
+        with col_k: kw_jort = st.text_input("Recherche textuelle JORT", placeholder="ex: communautaire", key="jort_kw")
         with col_p: safety_limit = st.number_input("Limite de sécurité (Pages)", 1, 200, 50)
 
         if st.button("Lancer l'investigation JORT") and kw_jort:
@@ -349,7 +350,7 @@ if check_password():
                 st.error("Secrets JORT_USER / JORT_PASS manquants.")
             else:
                 j_scraper = JORTScraper(st.secrets["JORT_USER"], st.secrets["JORT_PASS"], headless=True)
-                with st.spinner("Authentification et collecte en cours...") :
+                with st.spinner("Analyse de la pagination et collecte..."):
                     try:
                         loop = asyncio.new_event_loop()
                         asyncio.set_event_loop(loop)
@@ -365,9 +366,9 @@ if check_password():
                     csv_j = df_jort.to_csv(index=False, encoding='utf-8-sig')
                     st.download_button("📥 Télécharger CSV JORT", data=csv_j, file_name=f"jort_{kw_jort}.csv")
                 else: 
-                    st.warning("Aucune annonce trouvée ou accès bloqué par le serveur.")
+                    st.warning("Aucune annonce trouvée.")
                     if os.path.exists("debug_jort_cloud.png"):
-                        st.error("🚨 Rapport de débogage (Le serveur est probablement resté bloqué sur la page ci-dessous) :")
+                        st.error("🚨 Rapport de débogage OSINT : Le serveur est probablement resté bloqué sur la page ci-dessous :")
                         st.image("debug_jort_cloud.png")
 
     # --- MODULE FUSION ---
@@ -389,7 +390,7 @@ if check_password():
             master.index = list(range(1, len(master) + 1))
             st.success(f"Fusion terminée : {len(master)} entrées uniques.")
             st.dataframe(master, width='stretch')
-            st.download_button("📥 Télécharger Master File", master.to_csv(index=False, encoding='utf-8-sig'), "ba7ath_master.csv")
+            st.download_button("📥 Télécharger Master File", master.to_csv(index=False), "ba7ath_master.csv")
 
     # --- MODULE ANALYSE ---
     elif selected == "Analyse":
@@ -428,4 +429,4 @@ if check_password():
             st.rerun()
 
     st.divider()
-    st.caption("Console d'investigation ba7ath v9.5 PRO - Standard 2026. (c) Tout droit de reproduction réservé.")
+    st.caption("Console d'investigation ba7ath v10.1 PRO - Standard 2026. (c) Tout droit de reproduction réservé.")
