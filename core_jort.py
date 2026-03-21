@@ -114,13 +114,17 @@ class JORTScraper:
         return results
 
     async def _login(self, page):
-        """Connexion standard."""
+        """Connexion standard avec délai Cloud."""
         try:
-            await page.goto(f"{self.base_url}/login", wait_until="networkidle")
+            await page.goto(f"{self.base_url}/login", wait_until="networkidle", timeout=60000)
+            # Laisser le temps à Vaadin (Java) d'hydrater la page JS
+            await page.locator("vaadin-text-field input").first.wait_for(state="visible", timeout=30000)
+            await asyncio.sleep(2) 
             await page.locator("vaadin-text-field input").first.fill(self.user)
             await page.locator("vaadin-password-field input").first.fill(self.pwd)
             await page.click("vaadin-button[theme~='primary']")
-            await page.wait_for_function("() => !window.location.href.includes('/login')", timeout=15000)
+            # 45 secondes de marge pour le cloud au lieu de 15 !
+            await page.wait_for_function("() => !window.location.href.includes('/login')", timeout=45000)
             return True
         except Exception as e:
             st.error(f"Échec Login : {e}")
@@ -131,17 +135,19 @@ class JORTScraper:
             return False
 
     async def _do_search(self, page, keyword):
-        """Recherche textuelle."""
+        """Recherche textuelle avec délai Cloud."""
         try:
             if "/search" not in page.url:
-                await page.goto(f"{self.base_url}/search", wait_until="networkidle")
+                await page.goto(f"{self.base_url}/search", wait_until="networkidle", timeout=60000)
+            await page.locator("vaadin-text-field input").first.wait_for(state="visible", timeout=30000)
+            await asyncio.sleep(2)
             await page.locator("vaadin-text-field input").first.fill(keyword)
             # Bouton loupe
             btn = page.locator("vaadin-button").filter(has=page.locator("iron-icon[icon='vaadin:search']")).first
             if await btn.count() == 0: btn = page.locator("vaadin-button:has-text('Rechercher')")
             await btn.click()
-            await page.wait_for_timeout(2000)
-            await page.locator("announcement-card").first.wait_for(timeout=20000)
+            await page.wait_for_timeout(3000)
+            await page.locator("announcement-card").first.wait_for(timeout=45000)
             return True
         except Exception as e:
             st.error(f"Échec Recherche : {e}")
