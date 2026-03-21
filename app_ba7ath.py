@@ -158,32 +158,39 @@ class JORTScraper:
 
     async def run(self, keyword, max_safety_pages=50):
         async with async_playwright() as p:
-            browser = await p.chromium.launch(headless=self.headless)
+            # AJOUT OSINT : Masquer la signature du bot (AutomationControlled)
+            browser = await p.chromium.launch(
+                headless=self.headless,
+                args=["--disable-blink-features=AutomationControlled"]
+            )
             context = await browser.new_context(
                 user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
             )
             page = await context.new_page()
             
             try:
-                # 1. Login avec simulation humaine
-                await page.goto(f"{self.base_url}/login", wait_until="domcontentloaded", timeout=60000)
+                # 1. Login avec patience extrême
+                await page.goto(f"{self.base_url}/login", wait_until="networkidle", timeout=60000)
                 
-                # Attendre que les champs soient interactifs
                 username_loc = page.locator("input[name='username']")
-                password_loc = page.locator("input[name='password']")
-                await username_loc.wait_for(state="visible", timeout=15000)
+                await username_loc.wait_for(state="visible", timeout=20000)
                 
-                # Frapper les touches lentement pour déclencher le framework Vaadin
-                await username_loc.press_sequentially(self.user, delay=50)
-                await password_loc.press_sequentially(self.pwd, delay=50)
+                await page.fill("input[name='username']", self.user)
+                await page.fill("input[name='password']", self.pwd)
                 
-                # Cliquer sur le bouton de connexion
+                # Clic sur connexion
                 await page.click("vaadin-button[theme~='primary']")
                 
-                # PAUSE CRITIQUE : On force le Cloud à attendre la validation serveur
-                await asyncio.sleep(4)
-
-                # 2. Recherche
+                # PAUSE DÉCISIVE : On attend que le JORT ait créé la session avant de changer d'URL.
+                # Si le serveur est lent, networkidle permet de ne pas l'interrompre.
+                try:
+                    await page.wait_for_load_state("networkidle", timeout=15000)
+                except:
+                    pass # En cas de websocket récalcitrant, on ignore et on fait une pause stricte
+                
+                await asyncio.sleep(4) # Délai de sécurité pour Vaadin
+                
+                # 2. Recherche (Seulement maintenant qu'on est identifié)
                 await page.goto(f"{self.base_url}/search/{keyword}", wait_until="domcontentloaded", timeout=60000)
                 
                 # --- AUTO-DETECTION DE LA PAGINATION ---
@@ -220,7 +227,7 @@ class JORTScraper:
                         await page.wait_for_selector("announcement-card", timeout=15000)
                         await asyncio.sleep(2) # Stabilisation Vaadin
                     except PlaywrightTimeoutError:
-                        break
+                        break # Fin naturelle (ou page vide)
                     except Exception:
                         break
                         
@@ -358,7 +365,7 @@ if check_password():
                     csv_j = df_jort.to_csv(index=False, encoding='utf-8-sig')
                     st.download_button("📥 Télécharger CSV JORT", data=csv_j, file_name=f"jort_{kw_jort}.csv")
                 else: 
-                    st.warning("Aucune annonce trouvée.")
+                    st.warning("Aucune annonce trouvée ou accès bloqué par le serveur.")
                     if os.path.exists("debug_jort_cloud.png"):
                         st.error("🚨 Rapport de débogage (Le serveur est probablement resté bloqué sur la page ci-dessous) :")
                         st.image("debug_jort_cloud.png")
@@ -421,4 +428,4 @@ if check_password():
             st.rerun()
 
     st.divider()
-    st.caption("Console d'investigation ba7ath v9.3 PRO - Standard 2026. (c) Tout droit de reproduction réservé.")
+    st.caption("Console d'investigation ba7ath v9.4 PRO - Standard 2026. (c) Tout droit de reproduction réservé.")
