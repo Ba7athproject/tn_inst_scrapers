@@ -122,7 +122,13 @@ class JORTScraper:
             await page.click("vaadin-button[theme~='primary']")
             await page.wait_for_function("() => !window.location.href.includes('/login')", timeout=15000)
             return True
-        except: return False
+        except Exception as e:
+            st.error(f"Échec Login : {e}")
+            try:
+                await page.screenshot(path="debug_login.png")
+                st.image("debug_login.png", caption="Écran au moment de l'erreur Login")
+            except: pass
+            return False
 
     async def _do_search(self, page, keyword):
         """Recherche textuelle."""
@@ -137,7 +143,13 @@ class JORTScraper:
             await page.wait_for_timeout(2000)
             await page.locator("announcement-card").first.wait_for(timeout=20000)
             return True
-        except: return False
+        except Exception as e:
+            st.error(f"Échec Recherche : {e}")
+            try:
+                await page.screenshot(path="debug_search.png")
+                st.image("debug_search.png", caption="Écran au moment de l'erreur Recherche")
+            except: pass
+            return False
 
     async def _get_year_filters(self, page):
         """Boutons d'année dans la sidebar."""
@@ -152,7 +164,13 @@ class JORTScraper:
             all_btns = await page.locator("vaadin-button").all_inner_texts()
             years = [t.strip() for t in all_btns if re.match(r"^(19|20)\d{2}$", t.strip())]
             return sorted(list(set(years)), reverse=True)
-        except: return []
+        except Exception as e:
+            st.error(f"Échec Filtres Année : {e}")
+            try:
+                await page.screenshot(path="debug_filters.png")
+                st.image("debug_filters.png", caption="Écran au moment de l'erreur Filtres")
+            except: pass
+            return []
 
     async def _apply_year_filter(self, page, year):
         """Filtre année."""
