@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+
+# Streamlit
+.streamlit/secrets.toml
+
+# DONNÉES (Crucial pour l'investigation)
+# On ne veut jamais pousser les bases de données sur GitHub
+*.csv
+*.xlsx
+*.sqlite
+!ba7ath.png
+*.log
+
+# Système
+.DS_Store
+Thumbs.db

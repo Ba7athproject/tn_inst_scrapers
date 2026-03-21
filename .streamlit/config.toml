@@ -1,0 +1,17 @@
+[theme]
+primaryColor = "#00457C"
+backgroundColor = "#FFFFFF"
+secondaryBackgroundColor = "#F0F2F6"
+textColor = "#262730"
+font = "sans serif"
+
+[server]
+headless = true
+# On désactive la protection CORS pour permettre l'accès via IP/Domaine externe
+enableCORS = false
+# On désactive la protection XSRF si tu es derrière un proxy ou si tu as des erreurs de connexion
+enableXsrfProtection = false
+
+[client]
+# Enlève le menu "Developer" en haut à droite pour les utilisateurs
+toolbarMode = "minimal"

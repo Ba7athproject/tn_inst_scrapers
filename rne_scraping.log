@@ -1,0 +1,31 @@
+2026-03-21 09:59:06,707 - INFO - Recherche globale pour : الشركة الأهلية
+2026-03-21 09:59:07,753 - INFO - Total détecté sur le serveur : 122 entités.
+2026-03-21 09:59:07,754 - INFO - Progression : 50/122 collectés (Offset: 0)
+2026-03-21 09:59:08,923 - INFO - Progression : 50/122 collectés (Offset: 50)
+2026-03-21 09:59:10,104 - INFO - Progression : 50/122 collectés (Offset: 100)
+2026-03-21 09:59:11,304 - INFO - Progression : 50/122 collectés (Offset: 150)
+2026-03-21 09:59:12,493 - INFO - Progression : 50/122 collectés (Offset: 200)
+2026-03-21 09:59:13,663 - INFO - Progression : 50/122 collectés (Offset: 250)
+2026-03-21 09:59:14,853 - INFO - Progression : 50/122 collectés (Offset: 300)
+2026-03-21 09:59:16,043 - INFO - Progression : 50/122 collectés (Offset: 350)
+2026-03-21 09:59:17,225 - INFO - Progression : 50/122 collectés (Offset: 400)
+2026-03-21 09:59:18,403 - INFO - Progression : 50/122 collectés (Offset: 450)
+2026-03-21 09:59:19,564 - INFO - Progression : 50/122 collectés (Offset: 500)
+2026-03-21 09:59:20,738 - INFO - Progression : 50/122 collectés (Offset: 550)
+2026-03-21 09:59:21,923 - INFO - Progression : 50/122 collectés (Offset: 600)
+2026-03-21 09:59:23,105 - INFO - Progression : 50/122 collectés (Offset: 650)
+2026-03-21 09:59:24,284 - INFO - Progression : 50/122 collectés (Offset: 700)
+2026-03-21 09:59:25,464 - INFO - Progression : 50/122 collectés (Offset: 750)
+2026-03-21 09:59:26,643 - INFO - Progression : 50/122 collectés (Offset: 800)
+2026-03-21 09:59:27,823 - INFO - Progression : 50/122 collectés (Offset: 850)
+2026-03-21 10:01:25,663 - INFO - Recherche globale pour : الشركة الأهلية
+2026-03-21 10:01:26,604 - INFO - Total annoncé : 122
+2026-03-21 10:01:26,605 - INFO - Offset 0 : 50 nouvelles entreprises trouvées.
+2026-03-21 10:01:28,082 - INFO - Offset 50 : 0 nouvelles entreprises trouvées.
+2026-03-21 10:01:28,083 - WARNING - Le serveur renvoie des données déjà connues. Arrêt de la pagination.
+2026-03-21 10:01:28,083 - INFO - Enrichissement de 50 fiches...
+2026-03-21 10:01:36,228 - INFO - Fichier exporté : entreprises_ahliya_tunisie.csv
+2026-03-21 10:04:16,704 - INFO - [*] Investigation lancée sur : الشركة الأهلية
+2026-03-21 10:04:17,025 - ERROR - [-] Erreur à la page 0: 405 Client Error:  for url: https://www.registre-entreprises.tn/api/rne-api/front-office/shortEntites
+2026-03-21 10:04:17,025 - INFO - [OK] Fin de recherche : 0/None collectés.
+2026-03-21 10:04:17,026 - WARNING - Aucune donnée trouvée.
