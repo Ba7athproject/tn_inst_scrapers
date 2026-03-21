@@ -4,43 +4,51 @@ import time
 import requests
 import re
 import os
+import asyncio
+import sys
+import math
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from streamlit_option_menu import option_menu
+from playwright.async_api import async_playwright
 
 # ============================================================================
-# SÉCURITÉ : Couche d'authentification
+# 🛠️ CORRECTIF SYSTÈME : Windows asyncio pour Playwright
+# ============================================================================
+if sys.platform == 'win32':
+    asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
+
+# ============================================================================
+# 🔐 SÉCURITÉ : Couche d'authentification Console
 # ============================================================================
 def check_password():
-    """Retourne True si l'utilisateur a saisi le bon mot de passe."""
+    """Vérification du mot de passe via Streamlit Secrets."""
     def password_entered():
         if st.session_state["password"] == st.secrets["PASSWORD"]:
             st.session_state["password_correct"] = True
-            del st.session_state["password"]  # Sécurité : on supprime le texte clair
+            del st.session_state["password"]
         else:
             st.session_state["password_correct"] = False
 
     if "password_correct" not in st.session_state:
-        # Affichage initial du formulaire de login
         st.title("🔐 Accès Restreint : ba7ath")
-        st.text_input("Saisissez le code d'accès investigation :", 
+        st.text_input("Veuillez saisir le code d'accès investigation :", 
                      type="password", on_change=password_entered, key="password")
-        st.info("Cette console est un outil protégé du projet ba7ath.")
+        st.info("Cette console est un outil protégé réservé au projet ba7ath.")
         return False
     elif not st.session_state["password_correct"]:
-        # Erreur de mot de passe
         st.title("🔐 Accès Restreint : ba7ath")
-        st.text_input("Saisissez le code d'accès investigation :", 
+        st.text_input("Veuillez saisir le code d'accès investigation :", 
                      type="password", on_change=password_entered, key="password")
         st.error("❌ Code incorrect.")
         return False
-    else:
-        return True
+    return True
 
 # ============================================================================
-# LOGIQUE TECHNIQUE : RNECore (Moteur d'Extraction)
+# 🛰️ LOGIQUE RNE : RNECore (Moteur d'Investigation API Complet)
 # ============================================================================
 class RNECore:
+    """Moteur d'extraction RNE haute performance avec enrichissement complet."""
     BASE_URL_SHORT = "https://www.registre-entreprises.tn/api/rne-api/front-office/shortEntites"
     BASE_URL_DETAILS = "https://www.registre-entreprises.tn/api/rne-api/front-office/entites/short-details"
 
@@ -57,20 +65,17 @@ class RNECore:
         if val is None or str(val).lower() in ["null", "none", "nan"]:
             return ""
         s = str(val).strip()
-        if re.match(r'^\.+$', s): # Supprime les pollutions de type "..."
+        if re.match(r'^\.+$', s): 
             return ""
         return s
 
     def is_latin(self, text):
+        """Détecte la langue pour le paramètre de recherche RNE."""
         return bool(re.search(r'[a-zA-Z]', text))
 
     def search_ids(self, keyword, progress_bar):
-        """Moissonnage des IDs avec pagination par curseur."""
-        all_results = []
-        seen_ids = set()
-        last_id = ""
-        total_prevu = 0
-        
+        """Phase 1 : Moissonnage des identifiants avec pagination par curseur AfterID."""
+        all_results, seen_ids, last_id, total_prevu = [], set(), "", 0
         is_fr = self.is_latin(keyword)
         param_key = "denominationLatin" if is_fr else "denomination"
         
@@ -85,10 +90,8 @@ class RNECore:
             try:
                 resp = self.session.get(self.BASE_URL_SHORT, params=params, timeout=20)
                 if resp.status_code != 200: break
-                
                 data = resp.json()
                 registres = data.get("registres", [])
-                
                 if total_prevu == 0: total_prevu = data.get("total", 0)
                 if not registres: break
                 
@@ -99,25 +102,22 @@ class RNECore:
                         all_results.append(r)
                 
                 last_id = registres[-1].get("identifiantUnique")
-                
-                # Barre de progression calculée sur le total réel
                 prog_val = min(len(all_results) / total_prevu, 1.0) if total_prevu > 0 else 0.5
-                progress_bar.progress(prog_val, text=f"Collecte : {len(all_results)} / {total_prevu}")
+                progress_bar.progress(prog_val, text=f"Collecte RNE : {len(all_results)} / {total_prevu}")
 
                 if total_prevu > 0 and len(all_results) >= total_prevu: break
                 time.sleep(0.3)
             except: break
-            
         return all_results, total_prevu
 
     def fetch_details(self, entry):
-        """Enrichissement complet avec Adresses, Formes Juridiques et Métadonnées."""
+        """Phase 2 : Enrichissement complet avec Adresses, Formes Juridiques et Métadonnées."""
         uid = entry.get("identifiantUnique")
         try:
             url = f"{self.BASE_URL_DETAILS}/{uid}"
             res = self.session.get(url, timeout=15).json()
             
-            # Reconstruction des adresses
+            # Reconstruction précise des adresses
             addr_fr = f"{self._clean(res.get('rueFr'))} {self._clean(res.get('codePostal'))} {self._clean(res.get('villeFr'))}".strip()
             addr_ar = f"{self._clean(res.get('rueAr'))} {self._clean(res.get('codePostal'))} {self._clean(res.get('villeAr'))}".strip()
 
@@ -141,64 +141,158 @@ class RNECore:
         except: return None
 
 # ============================================================================
-# INTERFACE UTILISATEUR (Streamlit 2026 Ready)
+# 📜 LOGIQUE JORT : JORTScraper (Navigation Automatisée & Auto-Pagination)
+# ============================================================================
+class JORTScraper:
+    """Moteur de scraping JORT hautement automatisé."""
+    def __init__(self, user, pwd, headless=True):
+        self.user = user
+        self.pwd = pwd
+        self.headless = headless
+        self.base_url = "https://www.jortsearch.com"
+
+    async def run(self, keyword, max_safety_pages=50):
+        async with async_playwright() as p:
+            browser = await p.chromium.launch(headless=self.headless)
+            context = await browser.new_context(
+                user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
+            )
+            page = await context.new_page()
+            
+            try:
+                # 1. Login
+                await page.goto(f"{self.base_url}/login", wait_until="networkidle")
+                await page.wait_for_selector("input[name='username']", timeout=10000)
+                await page.fill("input[name='username']", self.user)
+                await page.fill("input[name='password']", self.pwd)
+                await page.click("vaadin-button[theme~='primary']")
+                await page.wait_for_selector("vaadin-text-field", timeout=15000)
+
+                # 2. Recherche
+                await page.goto(f"{self.base_url}/search/{keyword}", wait_until="networkidle")
+                
+                # --- AUTO-DETECTION DE LA PAGINATION (Fix Strict Mode & Timeout) ---
+                total_results = 0
+                pages_to_scrape = 1
+                try:
+                    # S'assurer que les annonces sont chargées avant de chercher la pagination
+                    await page.wait_for_selector("announcement-card", timeout=15000)
+                    
+                    # On cible strictement le pattern "1-10 of XXX" pour éviter les faux positifs dans le texte
+                    regex_pagination = re.compile(r'\d+\s*-\s*\d+\s+(?:of|sur|de|من)\s+\d+', re.IGNORECASE)
+                    pagination_locator = page.locator("span").filter(has_text=regex_pagination).first
+                    await pagination_locator.wait_for(timeout=5000)
+                    pagination_label = await pagination_locator.inner_text()
+                    
+                    # Extraction du nombre total de résultats
+                    match_total = re.search(r'\d+\s*-\s*\d+\s+(?:of|sur|de|من)\s+(\d+)', pagination_label, re.IGNORECASE)
+                    if match_total:
+                        total_results = int(match_total.group(1))
+                    
+                    total_pages = math.ceil(total_results / 10) if total_results > 0 else 1
+                    pages_to_scrape = min(total_pages, max_safety_pages)
+                    st.info(f"📊 Compteur détecté : {total_results} annonces. Extraction sur {pages_to_scrape} pages...")
+                except Exception:
+                    # Fallback de sécurité si la pagination n'est pas présente (ex: < 10 résultats)
+                    st.info(f"📊 Format de pagination introuvable. Parcours dynamique jusqu'à la limite de {max_safety_pages} pages...")
+                    pages_to_scrape = max_safety_pages
+                
+                all_annonces = []
+                for p_idx in range(pages_to_scrape):
+                    await page.wait_for_selector("announcement-card", timeout=10000)
+                    await asyncio.sleep(2) # Stabilisation Vaadin
+                    cards = await page.locator("announcement-card").all()
+                    
+                    for c in cards:
+                        try:
+                            # Extraction via evaluate pour les propriétés JavaScript
+                            journal_name = await c.evaluate("node => node.title")
+                            categorie_name = await c.evaluate("node => node.subTitle")
+                            content_text = await c.locator("span").inner_text()
+                            
+                            # Regex de filtrage ID JORT
+                            id_match = re.search(r'(\d{4}[A-Z0-9]\d{5}[A-Z]{4}\d)', content_text)
+                            
+                            all_annonces.append({
+                                "Journal": journal_name,
+                                "Catégorie": categorie_name,
+                                "Contenu": content_text,
+                                "ID_JORT": id_match.group(1) if id_match else "N/A",
+                                "Extraction": datetime.now().strftime("%Y-%m-%d %H:%M")
+                            })
+                        except: continue
+                    
+                    # 3. Navigation page suivante dynamique (S'arrête de lui-même si le bouton est inactif)
+                    next_btn = page.locator("vaadin-button:has(iron-icon[icon='vaadin:arrow-right'])")
+                    if p_idx < pages_to_scrape - 1 and await next_btn.is_visible() and await next_btn.is_enabled():
+                        first_card = page.locator("announcement-card").first
+                        old_text = await first_card.inner_text()
+                        await next_btn.click()
+                        
+                        try:
+                            await page.wait_for_function(
+                                """([oldT]) => {
+                                    const el = document.querySelector('announcement-card');
+                                    return el && el.innerText !== oldT;
+                                }""", arg=[old_text], timeout=15000
+                            )
+                        except: await asyncio.sleep(2)
+                    else: 
+                        break # Fin naturelle des résultats atteinte
+                
+                await browser.close()
+                return pd.DataFrame(all_annonces)
+            except Exception as e:
+                await browser.close()
+                st.error(f"Erreur de navigation JORT : {e}")
+                return pd.DataFrame()
+
+# ============================================================================
+# 🖥️ INTERFACE UTILISATEUR : Console ba7ath
 # ============================================================================
 if check_password():
-    st.set_page_config(page_title="ba7ath RNE Console", layout="wide", page_icon="🔍")
+    st.set_page_config(page_title="ba7ath Console", layout="wide", page_icon="🔍")
 
-    # Injection CSS : Branding ba7ath
     st.markdown("""
         <style>
-        .stButton>button { 
-            width: 100%; border-radius: 8px; height: 3.5em; 
-            background-color: #00457C; color: white; font-weight: bold; border: none;
-        }
+        .stButton>button { width: 100%; border-radius: 8px; height: 3.5em; background-color: #00457C; color: white; font-weight: bold; border: none; }
         .stButton>button:hover { background-color: #005fa3; color: white; border: none; }
         [data-testid="stSidebar"] { background-color: #f0f2f6; border-right: 1px solid #d1d5db; }
         </style>
     """, unsafe_allow_html=True)
 
-    # Barre Latérale (Navigation à gauche)
     with st.sidebar:
         if os.path.exists("ba7ath.png"):
             st.image("ba7ath.png", width='stretch')
         else:
             st.title("🔍 ba7ath")
-        
         st.divider()
-        
         selected = option_menu(
-            menu_title="Menu d'Investigation",
-            options=["Collecte", "Fusion", "Analyse", "Paramètres"],
-            icons=["cloud-download", "intersect", "graph-up-arrow", "gear"],
-            menu_icon="cast",
-            default_index=0,
-            styles={
-                "container": {"padding": "0!important", "background-color": "transparent"},
-                "nav-link-selected": {"background-color": "#00457C"},
-            }
+            menu_title="Navigation",
+            options=["RNE", "JORT", "Fusion", "Analyse", "Paramètres"],
+            icons=["building", "file-earmark-text", "intersect", "graph-up-arrow", "gear"],
+            menu_icon="cast", default_index=0,
+            styles={"nav-link-selected": {"background-color": "#00457C"}}
         )
 
-    # --- MODULE 1 : COLLECTE ---
-    if selected == "Collecte":
+    # --- MODULE RNE ---
+    if selected == "RNE":
         st.header("🛰️ Collecte RNE en temps réel")
         col_k, col_t = st.columns([3, 1])
-        with col_k:
-            keyword = st.text_input("Mot-clé (AR ou FR)", placeholder="ex: الشركة العالمية", key="input_keyword")
-        with col_t:
-            threads = st.slider("Puissance (Threads)", 1, 10, 5)
+        with col_k: kw = st.text_input("Mot-clé (AR ou FR)", placeholder="ex: الشركة الأهلية", key="rne_kw")
+        with col_t: th = st.slider("Puissance (Threads)", 1, 10, 5)
 
-        if st.button("Lancer l'investigation") and keyword:
-            scraper = RNECore()
-            prog = st.progress(0, text="Connexion au registre...")
-            ids_list, total_target = scraper.search_ids(keyword, prog)
+        if st.button("Lancer l'investigation RNE") and kw:
+            core = RNECore()
+            prog = st.progress(0, text="Initialisation...")
+            ids_list, total_target = core.search_ids(kw, prog)
             
             if ids_list:
                 st.info(f"Cible : {len(ids_list)} entreprises identifiées.")
                 final_data = []
-                with st.spinner("Enrichissement des fiches détaillées..."):
-                    with ThreadPoolExecutor(max_workers=threads) as executor:
-                        futures = [executor.submit(scraper.fetch_details, e) for e in ids_list]
+                with st.spinner("Enrichissement exhaustif des fiches..."):
+                    with ThreadPoolExecutor(max_workers=th) as executor:
+                        futures = [executor.submit(core.fetch_details, e) for e in ids_list]
                         for f in as_completed(futures):
                             res = f.result()
                             if res: final_data.append(res)
@@ -208,79 +302,95 @@ if check_password():
                     df.index = list(range(1, len(df) + 1))
                     st.dataframe(df, width='stretch')
                     csv = df.to_csv(index=False, encoding='utf-8-sig')
-                    st.download_button("📥 Télécharger le CSV", data=csv, 
-                                     file_name=f"rne_{keyword}_{datetime.now().strftime('%Y%m%d')}.csv")
-            else:
-                st.warning("Aucun résultat trouvé.")
+                    st.download_button("📥 Télécharger CSV RNE", data=csv, 
+                                     file_name=f"rne_{kw}_{datetime.now().strftime('%Y%m%d')}.csv")
+            else: st.warning("Aucun résultat trouvé.")
 
-    # --- MODULE 2 : FUSION ---
+    # --- MODULE JORT ---
+    elif selected == "JORT":
+        st.header("📜 Scraping JORT Automatisé")
+        col_k, col_p = st.columns([3, 1])
+        with col_k: kw_jort = st.text_input("Recherche textuelle JORT", placeholder="ex: communautaire", key="jort_kw")
+        with col_p: safety_limit = st.number_input("Limite de sécurité (Pages)", 1, 200, 50)
+
+        if st.button("Lancer l'investigation JORT") and kw_jort:
+            if "JORT_USER" not in st.secrets:
+                st.error("Secrets JORT_USER / JORT_PASS manquants.")
+            else:
+                j_scraper = JORTScraper(st.secrets["JORT_USER"], st.secrets["JORT_PASS"], headless=True)
+                with st.spinner("Analyse de la pagination et collecte..."):
+                    try:
+                        loop = asyncio.new_event_loop()
+                        asyncio.set_event_loop(loop)
+                        df_jort = loop.run_until_complete(j_scraper.run(kw_jort, max_safety_pages=safety_limit))
+                        loop.close()
+                    except Exception as e:
+                        st.error(f"Erreur de boucle : {e}")
+                        df_jort = pd.DataFrame()
+                
+                if not df_jort.empty:
+                    st.success(f"{len(df_jort)} annonces extraites.")
+                    st.dataframe(df_jort, width='stretch')
+                    csv_j = df_jort.to_csv(index=False, encoding='utf-8-sig')
+                    st.download_button("📥 Télécharger CSV JORT", data=csv_j, file_name=f"jort_{kw_jort}.csv")
+                else: st.warning("Aucune annonce trouvée.")
+
+    # --- MODULE FUSION ---
     elif selected == "Fusion":
         st.header("🔀 Fusionneur & Consolidation")
-        st.markdown("Combinez plusieurs fichiers pour générer votre **Master File** sans doublons d'ID.")
-        
-        files = st.file_uploader("Importer les fichiers CSV", type="csv", accept_multiple_files=True)
-        
-        if files:
-            if st.button("Lancer la Fusion"):
-                dfs = []
-                for f in files:
-                    d = pd.read_csv(f).rename(columns={'Metadata: Extrait le': 'Extraction (UTC)', 'Metadata: Source': 'Source URL'})
-                    dfs.append(d)
-                
-                if dfs:
-                    merged = pd.concat(dfs, ignore_index=True)
-                    if 'ID Unique' in merged.columns:
-                        master = merged.drop_duplicates(subset=['ID Unique']).copy()
-                        master.index = list(range(1, len(master) + 1))
-                        st.success(f"Fusion terminée : {len(merged)} lignes ➔ {len(master)} entreprises uniques.")
-                        st.dataframe(master, width='stretch')
-                        csv_m = master.to_csv(index=False, encoding='utf-8-sig')
-                        st.download_button("📥 Télécharger le Master File", data=csv_m, file_name="ba7ath_master_file.csv")
-
-    # --- MODULE 3 : ANALYSE ---
-    elif selected == "Analyse":
-        st.header("📊 Analyse statistique")
-        file_ana = st.file_uploader("Charger un fichier CSV pour analyse", type="csv")
-        
-        if file_ana:
-            df_ana = pd.read_csv(file_ana).fillna("Non renseigné")
-            df_ana.replace("", "Non renseigné", inplace=True)
+        files = st.file_uploader("Importer les fichiers de collecte", type="csv", accept_multiple_files=True)
+        if files and st.button("Générer le Master File"):
+            dfs = [pd.read_csv(f) for f in files]
+            merged = pd.concat(dfs, ignore_index=True)
             
-            st.divider()
+            # Blindage Fusion (RNE ou JORT)
+            if 'ID Unique' in merged.columns:
+                master = merged.drop_duplicates(subset=['ID Unique']).copy()
+            elif 'ID_JORT' in merged.columns:
+                master = merged.drop_duplicates(subset=['ID_JORT']).copy()
+            else:
+                master = merged.copy()
+                
+            master.index = list(range(1, len(master) + 1))
+            st.success(f"Fusion terminée : {len(master)} entrées uniques.")
+            st.dataframe(master, width='stretch')
+            st.download_button("📥 Télécharger Master File", master.to_csv(index=False), "ba7ath_master.csv")
+
+    # --- MODULE ANALYSE ---
+    elif selected == "Analyse":
+        st.header("📊 Analyse Statistique")
+        f_ana = st.file_uploader("Charger un Master File", type="csv")
+        if f_ana:
+            df_ana = pd.read_csv(f_ana).fillna("Non renseigné")
             c1, c2 = st.columns(2)
             
             with c1:
-                st.subheader("Top 10 Villes")
+                # Blindage Analyse 1 (S'adapte aux colonnes RNE ou JORT)
                 if 'Ville' in df_ana.columns:
-                    # On retire "Non renseigné" pour ne pas polluer le graphique
-                    data_villes = df_ana[df_ana['Ville'] != "Non renseigné"]['Ville'].value_counts().head(10)
-                    st.bar_chart(data_villes)
-            
+                    st.subheader("Top 10 Villes")
+                    st.bar_chart(df_ana[df_ana['Ville'] != "Non renseigné"]['Ville'].value_counts().head(10))
+                elif 'Catégorie' in df_ana.columns:
+                    st.subheader("Top 10 Catégories JORT")
+                    st.bar_chart(df_ana[df_ana['Catégorie'] != "Non renseigné"]['Catégorie'].value_counts().head(10))
+                    
             with c2:
-                st.subheader("Répartition par Statut")
-                if 'Statut' in df_ana.columns:
-                    st.write(df_ana['Statut'].value_counts())
-            
-            st.divider()
-            st.subheader("Distribution Géographique")
-            # Logique Fallback : Si Gouvernorat est vide, on prend la Ville
-            col_plot = 'Gouvernorat'
-            if df_ana['Gouvernorat'].replace("Non renseigné", "").str.strip().eq("").all():
-                st.warning("Champ 'Gouvernorat' vide. Affichage par défaut via les données de Ville.")
-                col_plot = 'Ville'
-            
-            counts = df_ana[df_ana[col_plot] != "Non renseigné"][col_plot].value_counts()
-            st.bar_chart(counts)
+                # Blindage Analyse 2 (S'adapte aux colonnes RNE ou JORT)
+                if 'Gouvernorat' in df_ana.columns:
+                    st.subheader("Distribution Gouvernorats")
+                    col_p = 'Gouvernorat' if not df_ana['Gouvernorat'].replace("Non renseigné","").str.strip().eq("").all() else 'Ville'
+                    st.bar_chart(df_ana[df_ana[col_p] != "Non renseigné"][col_p].value_counts())
+                elif 'Journal' in df_ana.columns:
+                    st.subheader("Distribution par Journal")
+                    st.bar_chart(df_ana[df_ana['Journal'] != "Non renseigné"]['Journal'].value_counts().head(10))
 
-    # --- MODULE 4 : PARAMÈTRES ---
+    # --- MODULE PARAMÈTRES ---
     elif selected == "Paramètres":
-        st.header("⚙️ Paramètres Console")
-        st.write("**Projet :** ba7ath - Investigation RNE")
-        st.write("**Version :** 6.5 (Auth + Fixed Analytics)")
-        st.divider()
-        if st.button("🚪 Déconnexion (Logout)"):
+        st.header("⚙️ Configuration")
+        st.write(f"Utilisateur JORT : `{st.secrets.get('JORT_USER', 'Inconnu')}`")
+        st.write(f"OS Plateforme : `{sys.platform}`")
+        if st.button("🚪 Déconnexion"):
             del st.session_state["password_correct"]
             st.rerun()
 
     st.divider()
-    st.caption("Console ba7ath - Standard de vérification OSINT Tunisie. (c) 2026.")
+    st.caption("Console d'investigation ba7ath v8.91 PRO - Standard 2026. (c) Tout droit de reproduction réservé.")
