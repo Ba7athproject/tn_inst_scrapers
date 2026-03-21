@@ -9,7 +9,6 @@ from view_rne import render_rne
 
 # Initialisation système (Fix Windows/Playwright)
 initialize_system()
-from view_jort import render_jort
 from view_fusion import render_fusion
 from view_analyse import render_analyse
 from view_settings import render_settings
@@ -44,8 +43,8 @@ if check_password():
         
         selected = option_menu(
             menu_title="Menu d'Investigation",
-            options=["RNE", "JORT", "Fusion", "Analyse", "Paramètres"],
-            icons=["cloud-download", "file-earmark-text", "intersect", "graph-up-arrow", "gear"],
+            options=["RNE", "Fusion", "Analyse", "Paramètres"],
+            icons=["cloud-download", "intersect", "graph-up-arrow", "gear"],
             menu_icon="cast",
             default_index=0,
             styles={
@@ -57,8 +56,6 @@ if check_password():
     # Dispatcher (Routage vers les modules UI)
     if selected == "RNE":
         render_rne()
-    elif selected == "JORT":
-        render_jort()
     elif selected == "Fusion":
         render_fusion()
     elif selected == "Analyse":
