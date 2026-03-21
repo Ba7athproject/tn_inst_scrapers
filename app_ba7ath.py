@@ -36,7 +36,7 @@ def check_password():
             st.session_state["password_correct"] = False
 
     if "password_correct" not in st.session_state:
-        st.title("🔐 Accès Restreint : ba7ath")
+        st.title("🔐 Accès Restreint : ba7ath Institutionnal Scrapers")
         st.text_input("Veuillez saisir le code d'accès investigation :", 
                      type="password", on_change=password_entered, key="password")
         st.info("Cette console est un outil protégé réservé au projet ba7ath.")
