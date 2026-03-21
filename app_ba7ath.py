@@ -10,7 +10,7 @@ import math
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from streamlit_option_menu import option_menu
-from playwright.async_api import async_playwright
+from playwright.async_api import async_playwright, TimeoutError as PlaywrightTimeoutError
 
 # ============================================================================
 # 🛠️ CORRECTIF SYSTÈME : Installation de Chromium pour Streamlit Cloud
@@ -166,30 +166,28 @@ class JORTScraper:
             
             try:
                 # 1. Login
-                await page.goto(f"{self.base_url}/login", wait_until="networkidle")
-                await page.wait_for_selector("input[name='username']", timeout=10000)
+                await page.goto(f"{self.base_url}/login", wait_until="domcontentloaded", timeout=60000)
+                await page.wait_for_selector("input[name='username']", timeout=15000)
                 await page.fill("input[name='username']", self.user)
                 await page.fill("input[name='password']", self.pwd)
                 await page.click("vaadin-button[theme~='primary']")
-                await page.wait_for_selector("vaadin-text-field", timeout=15000)
+                await page.wait_for_selector("vaadin-text-field", timeout=20000)
 
                 # 2. Recherche
-                await page.goto(f"{self.base_url}/search/{keyword}", wait_until="networkidle")
+                await page.goto(f"{self.base_url}/search/{keyword}", wait_until="domcontentloaded", timeout=60000)
                 
-                # --- AUTO-DETECTION DE LA PAGINATION (Fix Strict Mode & Timeout) ---
+                # --- AUTO-DETECTION DE LA PAGINATION ---
                 total_results = 0
                 pages_to_scrape = 1
                 try:
-                    # S'assurer que les annonces sont chargées avant de chercher la pagination
+                    # S'assurer que les annonces sont chargées. Si 0 résultat, ça part en Timeout silencieux.
                     await page.wait_for_selector("announcement-card", timeout=15000)
                     
-                    # On cible strictement le pattern "1-10 of XXX" pour éviter les faux positifs dans le texte
                     regex_pagination = re.compile(r'\d+\s*-\s*\d+\s+(?:of|sur|de|من)\s+\d+', re.IGNORECASE)
                     pagination_locator = page.locator("span").filter(has_text=regex_pagination).first
                     await pagination_locator.wait_for(timeout=5000)
                     pagination_label = await pagination_locator.inner_text()
                     
-                    # Extraction du nombre total de résultats
                     match_total = re.search(r'\d+\s*-\s*\d+\s+(?:of|sur|de|من)\s+(\d+)', pagination_label, re.IGNORECASE)
                     if match_total:
                         total_results = int(match_total.group(1))
@@ -197,25 +195,35 @@ class JORTScraper:
                     total_pages = math.ceil(total_results / 10) if total_results > 0 else 1
                     pages_to_scrape = min(total_pages, max_safety_pages)
                     st.info(f"📊 Compteur détecté : {total_results} annonces. Extraction sur {pages_to_scrape} pages...")
+                
+                except PlaywrightTimeoutError:
+                    # AUCUN RÉSULTAT : On quitte proprement sans crash.
+                    await browser.close()
+                    return pd.DataFrame()
                 except Exception:
-                    # Fallback de sécurité si la pagination n'est pas présente (ex: < 10 résultats)
                     st.info(f"📊 Format de pagination introuvable. Parcours dynamique jusqu'à la limite de {max_safety_pages} pages...")
                     pages_to_scrape = max_safety_pages
                 
                 all_annonces = []
                 for p_idx in range(pages_to_scrape):
-                    await page.wait_for_selector("announcement-card", timeout=10000)
-                    await asyncio.sleep(2) # Stabilisation Vaadin
+                    try:
+                        await page.wait_for_selector("announcement-card", timeout=15000)
+                        await asyncio.sleep(2) # Stabilisation Vaadin
+                    except PlaywrightTimeoutError:
+                        break # Fin naturelle (ou page vide)
+                    except Exception:
+                        break
+                        
                     cards = await page.locator("announcement-card").all()
-                    
+                    if not cards:
+                        break
+                        
                     for c in cards:
                         try:
-                            # Extraction via evaluate pour les propriétés JavaScript
                             journal_name = await c.evaluate("node => node.title")
                             categorie_name = await c.evaluate("node => node.subTitle")
                             content_text = await c.locator("span").inner_text()
                             
-                            # Regex de filtrage ID JORT
                             id_match = re.search(r'(\d{4}[A-Z0-9]\d{5}[A-Z]{4}\d)', content_text)
                             
                             all_annonces.append({
@@ -227,7 +235,7 @@ class JORTScraper:
                             })
                         except: continue
                     
-                    # 3. Navigation page suivante dynamique (S'arrête de lui-même si le bouton est inactif)
+                    # 3. Navigation page suivante dynamique
                     next_btn = page.locator("vaadin-button:has(iron-icon[icon='vaadin:arrow-right'])")
                     if p_idx < pages_to_scrape - 1 and await next_btn.is_visible() and await next_btn.is_enabled():
                         first_card = page.locator("announcement-card").first
@@ -247,9 +255,10 @@ class JORTScraper:
                 
                 await browser.close()
                 return pd.DataFrame(all_annonces)
+                
             except Exception as e:
                 await browser.close()
-                st.error(f"Erreur de navigation JORT : {e}")
+                st.error(f"Erreur technique JORT : {e}")
                 return pd.DataFrame()
 
 # ============================================================================
@@ -284,7 +293,7 @@ if check_password():
     if selected == "RNE":
         st.header("🛰️ Collecte RNE en temps réel")
         col_k, col_t = st.columns([3, 1])
-        with col_k: kw = st.text_input("Mot-clé (AR ou FR)", placeholder="ex:الشركة العالمية", key="rne_kw")
+        with col_k: kw = st.text_input("Mot-clé (AR ou FR)", placeholder="ex: الشركة الأهلية", key="rne_kw")
         with col_t: th = st.slider("Puissance (Threads)", 1, 10, 5)
 
         if st.button("Lancer l'investigation RNE") and kw:
@@ -338,7 +347,7 @@ if check_password():
                     st.dataframe(df_jort, width='stretch')
                     csv_j = df_jort.to_csv(index=False, encoding='utf-8-sig')
                     st.download_button("📥 Télécharger CSV JORT", data=csv_j, file_name=f"jort_{kw_jort}.csv")
-                else: st.warning("Aucune annonce trouvée.")
+                else: st.warning("Aucune annonce trouvée ou page restée vide.")
 
     # --- MODULE FUSION ---
     elif selected == "Fusion":
@@ -398,4 +407,4 @@ if check_password():
             st.rerun()
 
     st.divider()
-    st.caption("Console d'investigation ba7ath v8.91 PRO - Standard 2026. (c) Tout droit de reproduction réservé.")
+    st.caption("Console d'investigation ba7ath v9.2 PRO - Standard 2026. (c) Tout droit de reproduction réservé.")
