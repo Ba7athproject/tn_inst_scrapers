@@ -158,7 +158,7 @@ class JORTScraper:
 
     async def run(self, keyword, max_safety_pages=50):
         async with async_playwright() as p:
-            # AJOUT OSINT : Masquer la signature du bot (AutomationControlled)
+            # Masquer la signature du bot
             browser = await p.chromium.launch(
                 headless=self.headless,
                 args=["--disable-blink-features=AutomationControlled"]
@@ -169,26 +169,26 @@ class JORTScraper:
             page = await context.new_page()
             
             try:
-                # 1. Login avec patience extrême
+                # 1. Login avec approche "Clavier Humain" (Contournement Vaadin Shadow DOM)
                 await page.goto(f"{self.base_url}/login", wait_until="networkidle", timeout=60000)
                 
-                username_loc = page.locator("input[name='username']")
-                await username_loc.wait_for(state="visible", timeout=20000)
+                user_input = page.locator("input[name='username']")
+                await user_input.wait_for(state="visible", timeout=20000)
                 
-                await page.fill("input[name='username']", self.user)
-                await page.fill("input[name='password']", self.pwd)
+                # Clic explicite puis frappe au clavier système
+                await user_input.click()
+                await page.keyboard.type(self.user, delay=100)
+                
+                pass_input = page.locator("input[name='password']")
+                await pass_input.click()
+                await page.keyboard.type(self.pwd, delay=100)
                 
                 # Clic sur connexion
-                await page.click("vaadin-button[theme~='primary']")
+                login_btn = page.locator("vaadin-button[theme~='primary']")
+                await login_btn.click()
                 
-                # PAUSE DÉCISIVE : On attend que le JORT ait créé la session avant de changer d'URL.
-                # Si le serveur est lent, networkidle permet de ne pas l'interrompre.
-                try:
-                    await page.wait_for_load_state("networkidle", timeout=15000)
-                except:
-                    pass # En cas de websocket récalcitrant, on ignore et on fait une pause stricte
-                
-                await asyncio.sleep(4) # Délai de sécurité pour Vaadin
+                # Attente passive longue pour la création du cookie de session
+                await asyncio.sleep(6)
                 
                 # 2. Recherche (Seulement maintenant qu'on est identifié)
                 await page.goto(f"{self.base_url}/search/{keyword}", wait_until="domcontentloaded", timeout=60000)
@@ -428,4 +428,4 @@ if check_password():
             st.rerun()
 
     st.divider()
-    st.caption("Console d'investigation ba7ath v9.4 PRO - Standard 2026. (c) Tout droit de reproduction réservé.")
+    st.caption("Console d'investigation ba7ath v9.5 PRO - Standard 2026. (c) Tout droit de reproduction réservé.")
