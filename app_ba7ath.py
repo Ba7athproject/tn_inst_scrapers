@@ -13,6 +13,11 @@ from streamlit_option_menu import option_menu
 from playwright.async_api import async_playwright
 
 # ============================================================================
+# 🛠️ CORRECTIF SYSTÈME : Installation de Chromium pour Streamlit Cloud
+# ============================================================================
+os.system("playwright install chromium")
+
+# ============================================================================
 # 🛠️ CORRECTIF SYSTÈME : Windows asyncio pour Playwright
 # ============================================================================
 if sys.platform == 'win32':
@@ -354,7 +359,7 @@ if check_password():
             master.index = list(range(1, len(master) + 1))
             st.success(f"Fusion terminée : {len(master)} entrées uniques.")
             st.dataframe(master, width='stretch')
-            st.download_button("📥 Télécharger Master File", master.to_csv(index=False), "ba7ath_master.csv")
+            st.download_button("📥 Télécharger Master File", master.to_csv(index=False, encoding='utf-8-sig'), "ba7ath_master.csv")
 
     # --- MODULE ANALYSE ---
     elif selected == "Analyse":
