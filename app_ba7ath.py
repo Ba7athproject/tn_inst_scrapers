@@ -284,7 +284,7 @@ if check_password():
     if selected == "RNE":
         st.header("🛰️ Collecte RNE en temps réel")
         col_k, col_t = st.columns([3, 1])
-        with col_k: kw = st.text_input("Mot-clé (AR ou FR)", placeholder="ex: الشركة الأهلية", key="rne_kw")
+        with col_k: kw = st.text_input("Mot-clé (AR ou FR)", placeholder="ex:الشركة العالمية", key="rne_kw")
         with col_t: th = st.slider("Puissance (Threads)", 1, 10, 5)
 
         if st.button("Lancer l'investigation RNE") and kw:
@@ -315,7 +315,7 @@ if check_password():
     elif selected == "JORT":
         st.header("📜 Scraping JORT Automatisé")
         col_k, col_p = st.columns([3, 1])
-        with col_k: kw_jort = st.text_input("Recherche textuelle JORT", placeholder="ex: communautaire", key="jort_kw")
+        with col_k: kw_jort = st.text_input("Recherche textuelle JORT", placeholder="ex: International", key="jort_kw")
         with col_p: safety_limit = st.number_input("Limite de sécurité (Pages)", 1, 200, 50)
 
         if st.button("Lancer l'investigation JORT") and kw_jort:
