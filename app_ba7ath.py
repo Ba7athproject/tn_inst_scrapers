@@ -173,17 +173,12 @@ class JORTScraper:
                 await page.goto(f"{self.base_url}/login", wait_until="networkidle", timeout=60000)
                 await page.wait_for_timeout(5000) # Pause d'hydratation JS indispensable sur serveur distant
                 
-                # Simulation de frappe clavier humaine pour contrer le Shadow DOM
-                user_input = page.locator("input[name='username']")
-                await user_input.wait_for(state="visible", timeout=20000)
-                await user_input.click()
-                await page.keyboard.type(self.user, delay=100)
+                # Injection de force brute pour contourner le Shadow DOM de Vaadin en Headless
+                await page.locator("input[name='username']").fill(self.user, force=True)
+                await page.locator("input[name='password']").fill(self.pwd, force=True)
                 
-                pass_input = page.locator("input[name='password']")
-                await pass_input.click()
-                await page.keyboard.type(self.pwd, delay=100)
-                
-                await page.click("vaadin-button[theme~='primary']")
+                # On force le clic
+                await page.locator("vaadin-button[theme~='primary']").click(force=True)
                 await page.wait_for_timeout(6000) # Attente de validation de la session côté serveur
 
                 # 2. Recherche
@@ -237,7 +232,7 @@ class JORTScraper:
                         
                     for c in cards:
                         try:
-                            # Extraction stricte de l'utilisateur
+                            # Extraction stricte de l'utilisateur (node.title et node.subTitle)
                             journal_name = await c.evaluate("node => node.title")
                             categorie_name = await c.evaluate("node => node.subTitle")
                             content_text = await c.locator("span").inner_text()
@@ -259,7 +254,7 @@ class JORTScraper:
                     if p_idx < pages_to_scrape - 1 and await next_btn.is_visible() and await next_btn.is_enabled():
                         first_card = page.locator("announcement-card").first
                         old_text = await first_card.inner_text()
-                        await next_btn.click()
+                        await next_btn.click(force=True)
                         
                         try:
                             await page.wait_for_function(
@@ -346,6 +341,7 @@ if check_password():
         with col_p: safety_limit = st.number_input("Limite de sécurité (Pages)", 1, 200, 50)
 
         if st.button("Lancer l'investigation JORT") and kw_jort:
+            df_jort = pd.DataFrame()
             if "JORT_USER" not in st.secrets:
                 st.error("Secrets JORT_USER / JORT_PASS manquants.")
             else:
@@ -358,18 +354,18 @@ if check_password():
                         loop.close()
                     except Exception as e:
                         st.error(f"Erreur de boucle : {e}")
-                        df_jort = pd.DataFrame()
-                
-                if not df_jort.empty:
-                    st.success(f"{len(df_jort)} annonces extraites.")
-                    st.dataframe(df_jort, width='stretch')
-                    csv_j = df_jort.to_csv(index=False, encoding='utf-8-sig')
-                    st.download_button("📥 Télécharger CSV JORT", data=csv_j, file_name=f"jort_{kw_jort}.csv")
-                else: 
-                    st.warning("Aucune annonce trouvée.")
-                    if os.path.exists("debug_jort_cloud.png"):
-                        st.error("🚨 Rapport de débogage OSINT : Le serveur est probablement resté bloqué sur la page ci-dessous :")
-                        st.image("debug_jort_cloud.png")
+            
+            # Affichage et téléchargement sortis du spinner et du try/except de la boucle d'événements
+            if not df_jort.empty:
+                st.success(f"{len(df_jort)} annonces extraites.")
+                st.dataframe(df_jort, width='stretch')
+                csv_j = df_jort.to_csv(index=False, encoding='utf-8-sig')
+                st.download_button("📥 Télécharger CSV JORT", data=csv_j, file_name=f"jort_{kw_jort}.csv")
+            elif "JORT_USER" in st.secrets: # On ne l'affiche que si l'erreur ne venait pas des secrets
+                st.warning("Aucune annonce trouvée.")
+                if os.path.exists("debug_jort_cloud.png"):
+                    st.error("🚨 Rapport de débogage OSINT : Le serveur est probablement resté bloqué sur la page ci-dessous :")
+                    st.image("debug_jort_cloud.png")
 
     # --- MODULE FUSION ---
     elif selected == "Fusion":
