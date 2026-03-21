@@ -197,7 +197,8 @@ class JORTScraper:
                     st.info(f"📊 Compteur détecté : {total_results} annonces. Extraction sur {pages_to_scrape} pages...")
                 
                 except PlaywrightTimeoutError:
-                    # AUCUN RÉSULTAT : On quitte proprement sans crash.
+                    # 📸 PREUVE VISUELLE : Prendre une photo de ce qui bloque le Cloud
+                    await page.screenshot(path="debug_jort_cloud.png", full_page=True)
                     await browser.close()
                     return pd.DataFrame()
                 except Exception:
@@ -347,7 +348,12 @@ if check_password():
                     st.dataframe(df_jort, width='stretch')
                     csv_j = df_jort.to_csv(index=False, encoding='utf-8-sig')
                     st.download_button("📥 Télécharger CSV JORT", data=csv_j, file_name=f"jort_{kw_jort}.csv")
-                else: st.warning("Aucune annonce trouvée ou page restée vide.")
+                else: 
+                    st.warning("Aucune annonce trouvée ou accès bloqué par le serveur.")
+                    # 📸 Afficher la capture d'écran d'investigation
+                    if os.path.exists("debug_jort_cloud.png"):
+                        st.error("🚨 Rapport de débogage : Voici ce que le site jortsearch.com affiche réellement à notre serveur Cloud :")
+                        st.image("debug_jort_cloud.png")
 
     # --- MODULE FUSION ---
     elif selected == "Fusion":
