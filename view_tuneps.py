@@ -38,7 +38,7 @@ def render_tuneps():
     # Bouton de Téléchargement (EXE via Github)
     st.link_button(
         "📥 Télécharger Ba7ath_Scrapers_Pro.exe", 
-        "https://github.com/votre-user/votre-repo/releases/latest/download/Ba7ath_Scrapers_Pro.exe", # À AJUSTER PAR LE USER
+        "https://github.com/Ba7athproject/tn_inst_scrapers/releases/download/v7.4/Ba7ath_Scrapers_Pro.exe", # À AJUSTER PAR LE USER
         type="primary",
         help="Télécharge la dernière version stable du moteur de scraping local."
     )
