@@ -4,18 +4,32 @@ __pycache__/
 *$py.class
 .venv/
 venv/
+*.log
 
 # Streamlit
 .streamlit/secrets.toml
 
-# DONNÉES (Crucial pour l'investigation)
-# On ne veut jamais pousser les bases de données sur GitHub
+# DATA & EXPORTS (Exclus du repo global)
 *.csv
 *.xlsx
 *.sqlite
+*.json
+*.jsonl
 !ba7ath.png
-*.log
-debug_jort_cloud.png
-# Système
+!ba7ath.ico
+!buyers.json
+
+# BINAIRES & BUILD
+*.exe
+build/
+dist/
+*.spec
+
+# AGENTS & CACHE
+.Agents/
+.agent/
+.gemini/
+
+# SYSTÈME
 .DS_Store
 Thumbs.db
