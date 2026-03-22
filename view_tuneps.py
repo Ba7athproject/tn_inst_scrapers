@@ -54,7 +54,16 @@ def render_tuneps():
         try:
             df_imported = pd.read_excel(uploaded_file)
             st.success(f"✅ {len(df_imported)} marchés chargés. Prêt pour l'analyse RNE.")
-            _display_tuneps_results(df_imported, "Import Pro")
+            
+            col_preview, col_action = st.columns([2, 1])
+            with col_action:
+                if st.button("🚀 Lancer le Centre d'Intelligence Analytique", type="primary", use_container_width=True):
+                    st.session_state['data_to_analyse'] = df_imported
+                    st.success("Données envoyées ! Rendez-vous dans l'onglet 'Analyse' pour une exploration globale.")
+            
+            with col_preview:
+                _display_tuneps_results(df_imported, "Import Pro")
+                
         except Exception as e:
             st.error(f"Erreur d'importation : {e}")
 

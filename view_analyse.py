@@ -5,21 +5,31 @@ import re
 import random
 
 def render_analyse():
-    st.header("📊 Intelligence Analytique (Data-Journalisme)")
-    st.markdown("Importez un fichier généré par Ba7ath ou n'importe quel dataset CSV/Excel pour une analyse automatique.")
+    st.header("🧠 Centre d'Intelligence Analytique")
+    st.markdown("Exploration **flexible, globale et intelligente** de vos datasets (TUNEPS, RNE, JORT, ou fichiers externes).")
     
-    file_ana = st.file_uploader("Importer une base de données", type=["csv", "xlsx"])
+    # 1. Vérification si des données ont été transmises par le Hub TUNEPS
+    df_ana = None
     
-    if file_ana:
-        try:
-            if file_ana.name.endswith('.csv'):
-                df_ana = pd.read_csv(file_ana)
-            else:
-                df_ana = pd.read_excel(file_ana)
-        except Exception as e:
-            st.error(f"Erreur de lecture : {e}")
-            return
-            
+    if 'data_to_analyse' in st.session_state and st.session_state['data_to_analyse'] is not None:
+        df_ana = st.session_state['data_to_analyse']
+        st.info("💡 Données prêtes pour l'**Analyse Globale & Intelligente** (en provenance du Hub TUNEPS).")
+        if st.button("🗑️ Effacer et charger un autre fichier"):
+            st.session_state['data_to_analyse'] = None
+            st.rerun()
+    else:
+        file_ana = st.file_uploader("Importer une base de données", type=["csv", "xlsx"])
+        if file_ana:
+            try:
+                if file_ana.name.endswith('.csv'):
+                    df_ana = pd.read_csv(file_ana)
+                else:
+                    df_ana = pd.read_excel(file_ana)
+            except Exception as e:
+                st.error(f"Erreur de lecture : {e}")
+                return
+    
+    if df_ana is not None:
         if df_ana.empty:
             st.warning("Le fichier est vide.")
             return
