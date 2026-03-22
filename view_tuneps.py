@@ -2,119 +2,74 @@ import streamlit as st
 import pandas as pd
 import io
 from datetime import datetime
-from core_tuneps import get_tuneps_data
 from utils_export import render_export_buttons
 
 def render_tuneps():
-    """Rendu de la vue TUNEPS (Marchés Publics) dans Streamlit."""
-    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🏛️ TUNEPS - Résultats des Appels d'Offres</h2>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center; color: gray;'>Extraction ciblée sur le module des résultats des marchés publics tunisiens.</p>", unsafe_allow_html=True)
+    """Rendu de la vue TUNEPS (Marchés Publics) dans Streamlit - Mode HUB uniquement."""
+    st.markdown("<h2 style='text-align: center; color: #4CAF50;'>🏛️ TUNEPS - Hub d'Analyse des Marchés</h2>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center; color: gray;'>Importez vos données extraites via le Scraper Pro (Local) pour analyse.</p>", unsafe_allow_html=True)
     st.markdown("---")
 
-    # Zone de contrôle
-    with st.container(border=True):
-        st.markdown("#### Filtres de Recherche")
-        col1, col2 = st.columns([2, 1])
-        with col1:
-            tuneps_search = st.text_input(
-                "Mots-clés (ex: Logiciel, Nettoyage, etc.)", 
-                placeholder="Entrez vos mots-clés de recherche..."
-            )
-        with col2:
-            tuneps_limit = st.selectbox("Nombre max de marchés", [10, 50, 100, 500, 1000], index=1)
-            
-        with st.expander("Filtres Avancés (Dates, Statuts, PME, Acheteurs)", expanded=False):
-            import json, os
-            buyers_file = os.path.join(os.path.dirname(__file__), "buyers.json")
-            buyers_dict = {"Tous": None}
-            if os.path.exists(buyers_file):
-                try:
-                    with open(buyers_file, "r", encoding="utf-8") as f:
-                        buyers_dict.update(json.load(f))
-                except Exception:
-                    pass
-                    
-            st.markdown("###### Période de publication")
-            col_a, col_b = st.columns(2)
-            with col_a:
-                date_from = st.date_input("Publié à partir du", value=None)
-            with col_b:
-                date_to = st.date_input("Publié jusqu'au", value=None)
-                
-            st.markdown("###### Critères du marché")
-            col_c, col_d, col_e = st.columns([2, 1, 1])
-            with col_c:
-                buyer_ui = st.selectbox("Acheteur Public", list(buyers_dict.keys()))
-            with col_d:
-                statutOptions = ["Tous", "Attribué", "Infructueux", "Annulé"]
-                statut_ui = st.selectbox("Statut du résultat", statutOptions)
-            with col_e:
-                pmeOptions = ["Tous", "Oui", "Non"]
-                pme_ui = st.selectbox("Réservé aux PME", pmeOptions)
-                
-        # Ligne pour le bouton
-        col_btn1, col_btn2, col_btn3 = st.columns([1,2,1])
-        with col_btn2:
-            st.markdown("<br>", unsafe_allow_html=True)
-            search_clicked = st.button("🚀 Lancer l'extraction TUNEPS", width="stretch", type="primary")
+    # --- SECTION 1 : GUIDE D'UTILISATION (Remplacement du Scraping Serveur) ---
+    st.markdown("### 🛡️ Guide : Extraction Haute Fidélité (Edge Scraping)")
+    
+    col_info, col_vocation = st.columns([3, 2])
+    with col_info:
+        st.info("""
+            **Pourquoi le mode local ?**  
+            Le site TUNEPS utilise un pare-feu (WAF F5 BIG-IP) qui bloque systématiquement les serveurs cloud. Pour une extraction complète (Parité 100% data), il est nécessaire de lancer le moteur depuis votre propre ordinateur.
+        """)
+    with col_vocation:
+        st.warning("""
+            **🔒 Recommandation VPN / Proxy**  
+            L'usage d'un VPN (NordVPN, CyberGhost, etc.) est vivement conseillé. Il protège votre IP réelle des bannissements et offre une meilleure stabilité DNS face aux serveurs de TUNEPS.
+        """)
+
+    with st.expander("📖 Procédure complète d'extraction (Pas à pas)", expanded=False):
+        st.markdown("""
+        1. **Téléchargement** : Cliquez sur le bouton ci-dessous pour obtenir l'exécutable portable.
+        2. **Préparation** : Activez votre VPN ou Proxy.
+        3. **Lancement** : Exécutez `Ba7ath_Scrapers_Pro.exe` sur votre PC Windows.
+        4. **Scraping** : Saisissez vos mots-clés et lancez l'extraction. L'outil gère automatiquement les pauses anti-ban.
+        5. **Récupération** : Un fichier Excel est généré automatiquement dans le même dossier.
+        6. **Importation** : Glissez ce fichier Excel dans la zone ci-dessous.
+        """)
+    
+    # Bouton de Téléchargement (EXE via Github)
+    st.link_button(
+        "📥 Télécharger Ba7ath_Scrapers_Pro.exe", 
+        "https://github.com/votre-user/votre-repo/releases/latest/download/Ba7ath_Scrapers_Pro.exe", # À AJUSTER PAR LE USER
+        type="primary",
+        help="Télécharge la dernière version stable du moteur de scraping local."
+    )
 
     st.markdown("---")
 
-    # Conteneur de résultats
-    result_container = st.empty()
-    download_container = st.empty()
-
-    if search_clicked:
-        if not tuneps_search:
-            st.warning("⚠️ Veuillez entrer un mot-clé (ex: JORT, Logiciel...).")
-            return
-
-        progress_bar = st.progress(0.0)
-        status_text = st.empty()
-
-        # Mapping des statuts et PME
-        statut_id = None
-        if statut_ui == "Attribué": statut_id = 157
-        elif statut_ui == "Infructueux": statut_id = 158
-        elif statut_ui == "Annulé": statut_id = 156
-        
-        sme_id = None
-        if pme_ui == "Oui": sme_id = 1
-        elif pme_ui == "Non": sme_id = 2
-        
-        buyer_id = buyers_dict.get(buyer_ui)
-
-        # Lancement du scraper asynchrone
+    # --- SECTION 2 : ZONE D'IMPORTATION & ANALYSE ---
+    st.markdown("### 📥 Analyse & Importation des Données")
+    
+    uploaded_file = st.file_uploader("Glissez-déposez le fichier Excel généré par le Scraper Pro", type=["xlsx"])
+    
+    if uploaded_file:
         try:
-            df = get_tuneps_data(
-                keyword=tuneps_search, 
-                date_from=date_from, 
-                date_to=date_to, 
-                status_id=statut_id, 
-                sme_id=sme_id, 
-                buyer_id=buyer_id,
-                max_results=tuneps_limit
-            )
-            
-            progress_bar.progress(1.0)
-            status_text.text("✅ Opération terminée !")
-            
-            if df.empty:
-                result_container.warning("Aucun résultat trouvé pour cette recherche.")
-            else:
-                st.success(f"Opération réussie : {len(df)} marchés trouvés.")
-                st.dataframe(
-                    df, 
-                    width="stretch", 
-                    hide_index=True,
-                    column_config={
-                        "Lien Source": st.column_config.LinkColumn("Lien Source", display_text="Ouvrir la fiche")
-                    }
-                )
-                
-                st.markdown("### 📥 Téléchargements")
-                render_export_buttons(df, f"tuneps_export_{tuneps_search}")
+            df_imported = pd.read_excel(uploaded_file)
+            st.success(f"✅ {len(df_imported)} marchés chargés. Prêt pour l'analyse RNE.")
+            _display_tuneps_results(df_imported, "Import Pro")
         except Exception as e:
-            progress_bar.empty()
-            status_text.empty()
-            st.error(f"❌ Une erreur critique est survenue : {e}")
+            st.error(f"Erreur d'importation : {e}")
+
+def _display_tuneps_results(df, search_term):
+    """Fonction utilitaire pour afficher les résultats et les boutons d'export."""
+    st.dataframe(
+        df, 
+        use_container_width=True, 
+        hide_index=True,
+        column_config={
+            "Lien Source": st.column_config.LinkColumn("Fiche TUNEPS", display_text="Ouvrir"),
+            "Date de publication": st.column_config.DateColumn("Date")
+        }
+    )
+    
+    st.markdown("#### 🔄 Actions & Fusion")
+    render_export_buttons(df, f"tuneps_export_{search_term}")
+
