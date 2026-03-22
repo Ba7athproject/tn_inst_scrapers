@@ -12,12 +12,13 @@ initialize_system()
 from view_fusion import render_fusion
 from view_analyse import render_analyse
 from view_settings import render_settings
+from view_tuneps import render_tuneps
 
 # ============================================================================
 # 🖥️ POINT D'ENTRÉE STREAMLIT
 # ============================================================================
 # set_page_config doit être le tout premier appel Streamlit
-st.set_page_config(page_title="ba7ath Console", layout="wide", page_icon="🔍")
+st.set_page_config(page_title="Ba7ath Tn Scrapers & Intelligence Analytique (Data)", layout="wide", page_icon="🔍")
 
 if check_password():
     # Styles CSS : Branding ba7ath
@@ -37,14 +38,14 @@ if check_password():
         if os.path.exists("ba7ath.png"):
             st.image("ba7ath.png", width='stretch')
         else:
-            st.title("🔍 ba7ath")
+            st.title("🔍 Ba7ath Tn")
         
         st.divider()
         
         selected = option_menu(
             menu_title="Menu d'Investigation",
-            options=["RNE", "Fusion", "Analyse", "Paramètres"],
-            icons=["cloud-download", "intersect", "graph-up-arrow", "gear"],
+            options=["RNE", "Marchés Publics", "Fusion", "Analyse", "Paramètres"],
+            icons=["cloud-download", "briefcase", "intersect", "graph-up-arrow", "gear"],
             menu_icon="cast",
             default_index=0,
             styles={
@@ -56,6 +57,8 @@ if check_password():
     # Dispatcher (Routage vers les modules UI)
     if selected == "RNE":
         render_rne()
+    elif selected == "Marchés Publics":
+        render_tuneps()
     elif selected == "Fusion":
         render_fusion()
     elif selected == "Analyse":
@@ -64,4 +67,4 @@ if check_password():
         render_settings()
 
     st.divider()
-    st.caption("Console ba7ath - Standard de vérification OSINT Tunisie. (c) 2026.")
+    st.caption("Console Ba7ath Tn Scrapers & Intelligence Analytique (Data) - Standard de vérification OSINT Tunisie. (c) 2026.")

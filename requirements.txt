@@ -3,3 +3,8 @@ pandas
 requests
 streamlit-option-menu
 playwright
+aiohttp
+xlsxwriter
+openpyxl
+beautifulsoup4
+plotly

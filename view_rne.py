@@ -31,8 +31,8 @@ def render_rne():
                 df = pd.DataFrame(final_data)
                 df.index = list(range(1, len(df) + 1))
                 st.dataframe(df, width='stretch')
-                csv = df.to_csv(index=False, encoding='utf-8-sig')
-                st.download_button("📥 Télécharger le CSV", data=csv, 
-                                 file_name=f"rne_{keyword}_{datetime.now().strftime('%Y%m%d')}.csv")
+                from utils_export import render_export_buttons
+                st.markdown("### 📥 Téléchargements")
+                render_export_buttons(df, f"rne_export_{keyword}")
         else:
             st.warning("Aucun résultat trouvé.")

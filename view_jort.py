@@ -54,11 +54,9 @@ def render_jort():
                 if not df_jort.empty:
                     st.success(f"Extraction terminée : {len(df_jort)} annonces trouvées.")
                     st.dataframe(df_jort, width='stretch')
-                    csv = df_jort.to_csv(index=False, encoding='utf-8-sig')
-                    st.download_button("📥 Télécharger les résultats JORT", 
-                                     data=csv, 
-                                     file_name=f"jort_{keyword}.csv",
-                                     mime="text/csv")
+                    from utils_export import render_export_buttons
+                    st.markdown("### 📥 Téléchargements")
+                    render_export_buttons(df_jort, f"jort_export_{keyword}")
                 else:
                     st.warning("Aucune annonce trouvée ou erreur de connexion.")
                     
