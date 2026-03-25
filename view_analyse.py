@@ -74,8 +74,17 @@ def _auto_clean_df(df):
                     continue
             except: pass
 
-            if any(sample.str.contains(r'(?i)TND|DT|€|\$|millimes', na=False)):
-                df[col] = df[col].apply(_clean_numeric_string)
+            # Test Argent ou Nombre Pur (TND, DT, €, $, ou juste des chiffres bien formés)
+            # On cherche si au moins 50% du sample ressemble à un nombre après nettoyage basique
+            num_matches = 0
+            for s_val in sample:
+                cleaned = re.sub(r'[^\d.,]', '', s_val)
+                if len(cleaned) > 0 and any(c.isdigit() for c in cleaned):
+                    num_matches += 1
+            
+            if num_matches > len(sample) * 0.5:
+                # C'est probablement une colonne de mesures
+                df[col] = pd.to_numeric(df[col].apply(_clean_numeric_string), errors='coerce')
     return df
 
 def _clean_numeric_string(val):
