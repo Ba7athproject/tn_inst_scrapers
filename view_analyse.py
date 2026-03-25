@@ -173,7 +173,9 @@ def _render_exploration_libre(df, types):
     c1, c2, c3 = st.columns(3)
     x_axis = c1.selectbox("Axe X (Dimensions)", types['categorical'] + types['temporal'] + types['numerical'])
     y_axis = c2.selectbox("Axe Y (Mesures)", ["Nombre de lignes"] + types['numerical'])
-    chart_type = c3.selectbox("Type de Graphique", ["Barres", "Lignes", "Points (Nuage)", "Boxplot"])
+    chart_type = c3.selectbox("Type de Graphique", [
+        "Barres", "Lignes", "Aires", "Points (Nuage)", "Boxplot", "Violon", "Histogramme", "Camembert"
+    ])
     
     # Pour l'axe Y (Barres), on affiche 3 décimales (Millimes)
     y_format = ".3f"
@@ -192,19 +194,29 @@ def _render_exploration_libre(df, types):
         y_col = y_axis
 
     # --- VALIDATION SPÉCIFIQUE (ÉVITE VALUEERROR) ---
-    is_distribution_chart = chart_type in ["Points (Nuage)", "Boxplot"]
+    is_distribution_chart = chart_type in ["Points (Nuage)", "Boxplot", "Violon", "Histogramme"]
     if is_distribution_chart and y_axis == "Nombre de lignes":
-        st.error(f"❌ Le graphique en **{chart_type}** nécessite une mesure numérique réelle (ex: Montants) pour l'axe Y, pas un décompte de lignes.")
+        st.error(f"❌ Le graphique en **{chart_type}** nécessite une mesure numérique réelle (ex: Montants) pour l'axe Y.")
         return
     
     if chart_type == "Barres":
         fig = px.bar(plot_df, x=x_axis, y=y_col, color=y_col, text_auto=y_format)
     elif chart_type == "Lignes":
         fig = px.line(plot_df, x=x_axis, y=y_col, markers=True)
+    elif chart_type == "Aires":
+        fig = px.area(plot_df, x=x_axis, y=y_col)
     elif chart_type == "Points (Nuage)":
         fig = px.scatter(df, x=x_axis, y=y_axis, color=types['categorical'][0] if types['categorical'] else None)
-    else: # Boxplot
+    elif chart_type == "Boxplot":
         fig = px.box(df, x=x_axis, y=y_axis, color=x_axis)
+    elif chart_type == "Violon":
+        fig = px.violin(df, x=x_axis, y=y_axis, color=x_axis, box=True, points="all")
+    elif chart_type == "Histogramme":
+        fig = px.histogram(df, x=y_axis, color=x_axis, marginal="box")
+    elif chart_type == "Camembert":
+        fig = px.pie(plot_df, names=x_axis, values=y_col, hole=0.4)
+    else: # Fallback Barres
+        fig = px.bar(plot_df, x=x_axis, y=y_col)
         
     st.plotly_chart(fig, width='stretch')
 
