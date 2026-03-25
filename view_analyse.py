@@ -191,13 +191,19 @@ def _render_exploration_libre(df, types):
             plot_df = df.groupby(x_axis)[y_axis].mean().reset_index()
         y_col = y_axis
 
+    # --- VALIDATION SPÉCIFIQUE (ÉVITE VALUEERROR) ---
+    is_distribution_chart = chart_type in ["Points (Nuage)", "Boxplot"]
+    if is_distribution_chart and y_axis == "Nombre de lignes":
+        st.error(f"❌ Le graphique en **{chart_type}** nécessite une mesure numérique réelle (ex: Montants) pour l'axe Y, pas un décompte de lignes.")
+        return
+    
     if chart_type == "Barres":
         fig = px.bar(plot_df, x=x_axis, y=y_col, color=y_col, text_auto=y_format)
     elif chart_type == "Lignes":
         fig = px.line(plot_df, x=x_axis, y=y_col, markers=True)
     elif chart_type == "Points (Nuage)":
         fig = px.scatter(df, x=x_axis, y=y_axis, color=types['categorical'][0] if types['categorical'] else None)
-    else:
+    else: # Boxplot
         fig = px.box(df, x=x_axis, y=y_axis, color=x_axis)
         
     st.plotly_chart(fig, width='stretch')
