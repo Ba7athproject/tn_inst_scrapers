@@ -13,6 +13,7 @@ from view_fusion import render_fusion
 from view_analyse import render_analyse
 from view_settings import render_settings
 from view_tuneps import render_tuneps
+from view_jort import render_jort
 
 # ============================================================================
 # 🖥️ POINT D'ENTRÉE STREAMLIT
@@ -38,14 +39,21 @@ if check_password():
         if os.path.exists("ba7ath.png"):
             st.image("ba7ath.png", width='stretch')
         else:
-            st.title("🔍 Ba7ath Tn")
+            st.title("🔍 Ba7ath Edge")
+        
+        st.divider()
+        
+        # PROMOTION VERSION STANDALONE
+        st.info("**Ba7ath Edge Pro (v9.0)**")
+        st.link_button("📥 Télécharger l'Application (.exe)", "https://ton-lien-de-telechargement.com", type="primary", use_container_width=True)
+        st.caption("Version Windows optimisée (Sans Python).")
         
         st.divider()
         
         selected = option_menu(
             menu_title="Menu d'Investigation",
-            options=["RNE", "Marchés Publics", "Fusion", "Analyse", "Paramètres"],
-            icons=["cloud-download", "briefcase", "intersect", "graph-up-arrow", "gear"],
+            options=["RNE", "JORT", "Marchés Publics", "Fusion", "Analyse", "Paramètres"],
+            icons=["cloud-download", "journal-bookmark", "briefcase", "intersect", "graph-up-arrow", "gear"],
             menu_icon="cast",
             default_index=0,
             styles={
@@ -57,6 +65,8 @@ if check_password():
     # Dispatcher (Routage vers les modules UI)
     if selected == "RNE":
         render_rne()
+    elif selected == "JORT":
+        render_jort()
     elif selected == "Marchés Publics":
         render_tuneps()
     elif selected == "Fusion":

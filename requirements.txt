@@ -11,3 +11,5 @@ plotly
 urllib3
 aiohttp-socks
 pysocks
+Pillow
+pyinstaller

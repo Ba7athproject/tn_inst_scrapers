@@ -2,6 +2,7 @@ import streamlit as st
 import os
 import requests
 import urllib3
+import json
 
 # Désactiver les avertissements SSL pour les tests de diagnostic
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -18,6 +19,40 @@ def render_settings():
         del st.session_state["password_correct"]
         st.rerun()
         
+    st.divider()
+
+    st.subheader("⚖️ Gestion de Compte JORT")
+    
+    st.error("""
+        **ATTENTION :** Le site **JortSearch (jortsearch.com)** est la seule source viable. 
+        Il est **IMPÉRATIF** de créer un compte, de le valider par email, puis de renseigner vos identifiants ci-dessous. 
+        Sans compte validé, l'extraction JORT échouera.
+    """)
+    
+    st.markdown("Renseignez vos identifiants JortSearch officiels :")
+    
+    cred_path = "jort_credentials.json"
+    jort_creds = {"user": "", "pass": ""}
+    if os.path.exists(cred_path):
+        with open(cred_path, "r") as f:
+            try: jort_creds = json.load(f)
+            except: pass
+
+    col_j1, col_j2 = st.columns(2)
+    with col_j1:
+        j_user = st.text_input("Email JORT Search", value=jort_creds.get("user", ""), placeholder="votre@email.com")
+    with col_j2:
+        j_pass = st.text_input("Mot de passe JORT", value=jort_creds.get("pass", ""), type="password")
+
+    if st.button("💾 Sauvegarder les identifiants JORT", width='stretch'):
+        with open(cred_path, "w") as f:
+            json.dump({"user": j_user, "pass": j_pass}, f)
+        st.success("✅ Identifiants JORT sauvegardés localement.")
+        st.session_state["jort_user"] = j_user
+        st.session_state["jort_pass"] = j_pass
+    
+    st.info("💡 Pas encore de compte ? [Inscrivez-vous ici](https://www.jortsearch.com/login)")
+
     st.divider()
     
     # --- SECTION LISTE DE PROXYS (ROTATION) ---

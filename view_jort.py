@@ -1,10 +1,18 @@
 import streamlit as st
 import pandas as pd
 import asyncio
+import os
+import json
 from core_jort import JORTScraper
 
 def render_jort():
     st.header("⚖️ Collecte Journal Officiel (JORT)")
+    
+    st.info("""
+        **Autonomie Totale** : L'application "Ba7ath EDGE Pro v9.0" gère désormais le scraping JORT en local (via Playwright). 
+        Cela garantit une indépendance complète aux enquêteurs dans leurs recherches d'annonces légales.
+    """)
+    
     st.markdown("Extraction des annonces légales via **jortsearch.com**.")
     
     col_k, col_p, col_y1, col_y2 = st.columns([3, 1, 1, 1])
@@ -18,12 +26,26 @@ def render_jort():
         year_end = st.number_input("An fin", min_value=2000, max_value=2026, value=2025)
 
     if st.button("Démarrer le Scraping JORT") and keyword:
-        # Récupération des credentials
-        user = st.secrets.get("JORT_USER")
-        pwd = st.secrets.get("JORT_PASS")
+        # Récupération des credentials (priorité : session_state > jort_credentials.json > st.secrets)
+        user = st.session_state.get("jort_user")
+        pwd = st.session_state.get("jort_pass")
+
+        if not user or not pwd:
+            cred_path = "jort_credentials.json"
+            if os.path.exists(cred_path):
+                try:
+                    with open(cred_path, "r") as f:
+                        creds = json.load(f)
+                        user = creds.get("user")
+                        pwd = creds.get("pass")
+                except: pass
         
         if not user or not pwd:
-            st.error("Identifiants JORT manquants dans les secrets.")
+            user = st.secrets.get("JORT_USER")
+            pwd = st.secrets.get("JORT_PASS")
+        
+        if not user or not pwd:
+            st.error("⚠️ Identifiants JORT manquants. Veuillez les renseigner dans l'onglet **Paramètres**.")
             return
 
         scraper = JORTScraper(user, pwd, headless=True)

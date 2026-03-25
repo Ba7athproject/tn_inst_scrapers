@@ -1,70 +1,53 @@
-# 🔍 Ba7ath Tn Scraper Hub (Pro Edition v7.7)
+# 🔍 Ba7ath Edge Pro (Standalone Edition v9.0)
 
-**Ba7ath Tn Scraper Hub** est un écosystème d'investigation numérique (OSINT) avancé, conçu pour automatiser la collecte, l'enrichissement et le croisement des données publiques tunisiennes.
-
-Indispensable pour le data-journalisme et l'intelligence économique, ce projet offre une réponse technique robuste aux défis modernes (WAF complexes, API asynchrones, et protection anti-robot).
+**Ba7ath Edge Pro** est une suite d'intelligence économique et d'investigation numérique (OSINT) spécialisée pour le marché tunisien. Cette version **v9.0** marque le passage à une plateforme autonome, brandée et équipée de l'investigateur JORT.
 
 ---
 
 ## 🏛️ L'Écosystème Ba7ath PRO
 
-Le projet s'articule autour de trois piliers technologiques :
+Le projet s'articule autour de trois modules majeurs :
 
-### 1. ⚛️ Streamlit Analytics Hub (`app_ba7ath.py`)
-Le quartier général analytique de l'investigation.
-- **Moteur RNE** : Extraction profonde des registres d'entreprises (après découverte par `afterId`).
-- **Moteur JORT** : Scraping asynchrone via Playwright (Headless) pour naviguer dans les annonces légales Vaadin.
-- **Module de Fusion** : Interconnexion dynamique entre TUNEPS, RNE et JORT.
+### 1. ⚖️ Investigateur JORT (Nouveau)
+Scraping intelligent du Journal Officiel de la République Tunisienne.
+- **Moteur Vaadin/Playwright** : Navigation asynchrone pour extraire les annonces légales complexes.
+- **Filtres Avancés** : Recherche par catégorie (Constitution, Actes, etc.) et périodes multi-années.
+- **Gestion JortSearch** : Intégration transparente de vos identifiants JortSearch.
 
-### 2. 🛡️ Edge Scraper Pro (`tuneps_gui.py`)
-Moteur de scraping local "Haute Fidélité" pour les marchés publics (TUNEPS).
-- **WAF Bypass** : Contournement du pare-feu F5 BIG-IP via une émulation de navigation réelle.
-- **Anti-Ban Intelligent** : Gestion automatique des délais et pauses de sécurité (Rate-limiting).
-- **Indexation Massive** : Intégration de plus de **1100 acheteurs publics** et extraction des détails profonds (Gagnants, RNE, Montants, Motifs).
-- **Version Portable** : Compilable en `.exe` pour une utilisation locale sur Windows.
+### 2. 🏛️ Edge Scraper TUNEPS
+Moteur de scraping "Haute Fidélité" pour les marchés publics.
+- **WAF Bypass & Anti-Ban** : Émulation humaine pour naviguer sur le portail TUNEPS sans interruption.
+- **Détails Profonds** : Extraction automatique des gagnants, RNE, montants et motifs de décision.
+- **Vivid UI** : Interface "Slate & Azure" avec signalisation dynamique du statut système.
 
-### 3. 🧠 Centre d'Intelligence Analytique (`view_analyse.py`)
-Un outil d'exploration flexible pour transformer les données brutes en insights.
-- **Analyse Automatique** : Détection des KPIs, top-acheteurs, et statistiques de marché.
-- **Visualisation Dynamique** : Graphiques Plotly interactifs pour croiser et explorer n'importe quel dataset (Excel/CSV).
-- **Pont de Données** : Importation directe depuis le Hub TUNEPS en un clic.
+### 3. 🍱 Mode Standalone & Portabilité
+- **Zéro Dépendance** : Distribué en un seul fichier `.exe` pour Windows. Aucun Python requis.
+- **Build Automatisé** : Script `build_standalone.py` inclus pour générer l'exécutable personnalisé.
 
 ---
 
 ## 🚀 Installation & Lancement
 
-### Prérequis
-- **Python 3.10+**
-- **Navigateurs Playwright** (pour le JORT) : `playwright install chromium`
+### Pour les utilisateurs finaux
+L'exécutable se trouve dans le dossier `dist/Ba7ath_Edge_Pro.exe`. Double-cliquez pour lancer.
 
-### Setup Rapide
-```bash
-# Installation des dépendances
-pip install -r requirements.txt
-
-# Lancement de la Console Web
-streamlit run app_ba7ath.py
-
-# Lancement du Scraper Pro (Local)
-python tuneps_gui.py
-```
+### Pour les développeurs
+1. **Prérequis** : Python 3.10+, Playwright.
+2. **Installation** : `pip install -r requirements.txt`
+3. **Lancement** : `python tuneps_gui.py`
+4. **Compilation** : `python build_standalone.py`
 
 ---
 
 ## 🏗️ Architecture Technique
 
-- **Backend** : Python (Pandas, Aiohttp, Playwright, Curl_cffi)
-- **Frontend Web** : Streamlit (Branding Ba7ath Indigo)
-- **Frontend GUI** : Tkinter (Structure Notebook extensible)
-- **Data Persistence** : Exports Excel/CSV standardisés pour l'interopérabilité.
+- **Moteurs** : Playwright (JORT) & Aiohttp (TUNEPS).
+- **Interface** : Tkinter Premium avec Thème Slate & Azure.
+- **Export** : Excel (.xlsx) via Pandas.
 
 ---
 
-## 🛡️ Éthique & Bonnes Pratiques OSINT
-Ce projet respecte les standards de transparence et de responsabilité liés à l'extraction de données publiques :
-- **Sources Ouvertes** : Uniquement des données accessibles librement par tout internaute.
-- **Rate-Limiting** : Des pauses sont intégrées pour ne pas surcharger les ressources des serveurs gouvernementaux.
-- **Intégrité** : Tous les fichiers de debug et temporaires sont exclus (`.gitignore`) pour un dépôt GitHub sain et professionnel.
+## 🛡️ Éthique & Responsabilité
+Ce projet respecte les standards de transparence OSINT. Les utilisateurs doivent respecter les conditions d'utilisation des sites sources.
 
----
 *(c) 2026 Ba7athproject - Standard de vérification OSINT Tunisie.*

@@ -13,8 +13,8 @@ venv/
 *.csv
 *.xlsx
 *.sqlite
-*.json
 *.jsonl
+jort_credentials.json
 !ba7ath.png
 !ba7ath.ico
 !buyers.json
