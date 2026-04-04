@@ -17,6 +17,14 @@ try:
 except ImportError:
     # Fallback si Pillow n'est pas installé (quoique recommandé)
     Image, ImageTk = None, None
+
+# ── FIX PyInstaller : Forcer Playwright à trouver les navigateurs système ──
+# Sans ce fix, l'exe cherche Chromium dans le dossier temporaire _MEI.
+if sys.platform == 'win32':
+    _pw_path = os.path.join(os.path.expanduser("~"), "AppData", "Local", "ms-playwright")
+    if os.path.exists(_pw_path):
+        os.environ["PLAYWRIGHT_BROWSERS_PATH"] = _pw_path
+
 from jort_investigator import JORTScraper
 
 # --- GESTION DES RESSOURCES (Icones, JSON) ---
@@ -228,19 +236,13 @@ class JortLogic:
     async def run_scrape(self, user, pwd, keywords, year_start, year_end, category, pages):
         self.log(f"🚀 Démarrage JORT ({year_start} -> {year_end}) - {category}...")
         scraper = JORTScraper(user, pwd, headless=True)
-        from playwright.async_api import async_playwright
-        async with async_playwright() as p:
-            browser = await p.chromium.launch(headless=True)
-            page = await browser.new_page()
-            try:
-                # On passe le callback de log du GUI au scraper
-                df = await scraper.run_scrape(user, pwd, keywords, year_start, year_end, category, pages, logger=self.log)
-                return df
-            except Exception as e:
-                self.log(f"❌ Erreur JORT : {e}")
-                return None
-            finally:
-                await browser.close()
+        try:
+            # run_scrape crée son propre browser en interne
+            df = await scraper.run_scrape(user, pwd, keywords, year_start, year_end, category, pages, logger=self.log)
+            return df
+        except Exception as e:
+            self.log(f"❌ Erreur JORT : {e}")
+            return None
 
 # --- INTERFACE GUI PROFESSIONNELLE ---
 

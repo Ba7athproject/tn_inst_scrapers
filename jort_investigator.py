@@ -23,21 +23,43 @@ class JORTScraper:
         self.log("Connexion au compte JORT...", logger)
         try:
             await page.goto(f"{self.base_url}/login", wait_until="networkidle", timeout=60000)
-            await page.wait_for_selector("vaadin-text-field", timeout=20000)
             
-            # Attente de l'input dans le composant Vaadin
-            await page.locator('vaadin-text-field:has(label:has-text("Email")), vaadin-email-field, vaadin-text-field').locator("input").first.fill(self.username)
-            await page.locator('vaadin-password-field input').first.fill(self.password)
+            # Attendre que le formulaire Vaadin soit hydraté
+            await page.wait_for_selector("vaadin-text-field", timeout=30000)
+            import asyncio as _aio
+            await _aio.sleep(2)  # Laisser Vaadin s'hydrater complètement
             
-            # Clic sur le bouton de connexion
-            await page.click("vaadin-button[theme~='primary'], vaadin-button:has-text('Connexion')")
+            # Remplissage - sélecteurs robustes basés sur l'inspection du site live
+            email_field = page.locator("vaadin-text-field[label='E-mail'] input, vaadin-text-field input").first
+            await email_field.wait_for(state="visible", timeout=10000)
+            await email_field.fill(self.username)
             
-            # Attendre que la redirection soit effective
+            pwd_field = page.locator("vaadin-password-field input").first
+            await pwd_field.fill(self.password)
+            
+            # Le bouton s'appelle "Se connecter" (pas "Connexion")
+            login_btn = page.locator("vaadin-button:has-text('Se connecter'), vaadin-button:has-text('Connexion'), vaadin-button[theme~='primary']").first
+            await login_btn.click()
+            self.log("Bouton de connexion cliqué, attente de la redirection...", logger)
+            
+            # Attendre que la redirection soit effective (max 45s)
             await page.wait_for_function("() => !window.location.href.includes('/login')", timeout=45000)
-            self.log("Connecté avec succès.", logger)
+            self.log("✅ Connecté avec succès.", logger)
             return True
         except Exception as e:
-            self.log(f"Échec de connexion : {e}", logger)
+            self.log(f"❌ Échec de connexion : {e}", logger)
+            # Diagnostic : vérifier si un message d'erreur est affiché
+            try:
+                # Vérifier les messages d'erreur Vaadin (mauvais mot de passe, etc.)
+                err_msgs = await page.locator("[theme~='error'], .error-message, vaadin-notification").all_text_contents()
+                if err_msgs:
+                    self.log(f"⚠️ Message du site : {' | '.join(err_msgs)}", logger)
+                # Vérifier l'URL actuelle
+                self.log(f"📍 URL actuelle : {page.url}", logger)
+                # Screenshot de diagnostic
+                await page.screenshot(path="debug_jort_login.png")
+                self.log("📸 Screenshot sauvegardé : debug_jort_login.png", logger)
+            except: pass
             return False
 
     async def signup(self, page, first_name, last_name, email, password):

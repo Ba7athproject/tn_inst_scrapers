@@ -1,6 +1,6 @@
 # 🚀 Ba7ath Edge Pro v9.0 - "The Jort & Standalone Edition"
 
-Nous sommes fiers d'annoncer la sortie de la version **v9.0**, une étape majeure dans l'évolution de la suite Ba7ath. Cette version transforme l'outil en une application professionnelle complète, autonome et prête pour une utilisation intensive.
+Nous sommes fiers d'annoncer la sortie de la version **v9.0**, une étape majeure dans l'évolution de la suite Ba7ath EDGE. Cette version transforme l'outil en une application professionnelle complète, autonome et prête pour une utilisation intensive.
 
 ## ✨ Nouveautés Majeures
 

@@ -120,9 +120,10 @@ class JORTScraper:
             # Laisser le temps à Vaadin (Java) d'hydrater la page JS
             await page.locator("vaadin-text-field input").first.wait_for(state="visible", timeout=30000)
             await asyncio.sleep(2) 
-            await page.locator("vaadin-text-field input").first.fill(self.user)
+            await page.locator("vaadin-text-field[label='E-mail'] input, vaadin-text-field input").first.fill(self.user)
             await page.locator("vaadin-password-field input").first.fill(self.pwd)
-            await page.click("vaadin-button[theme~='primary']")
+            # Le bouton s'appelle "Se connecter" sur le site live
+            await page.locator("vaadin-button:has-text('Se connecter'), vaadin-button:has-text('Connexion'), vaadin-button[theme~='primary']").first.click()
             # 45 secondes de marge pour le cloud au lieu de 15 !
             await page.wait_for_function("() => !window.location.href.includes('/login')", timeout=45000)
             return True
